@@ -1,0 +1,92 @@
+/** ALL TESTED **/
+//created on: Mar 13, 2014
+package cz.muni.fi.civ.newohybat.drools.rules
+
+//list any import classes here.
+import java.util.HashMap;
+import java.util.Map;
+ 
+
+//declare any global variables here 
+
+rule "Remove CurrentUnit Field When Not In Enabled"
+	salience 100
+	when
+		$city:CityDTO(
+			currentUnit not memberOf enabledUnitTypes
+		)
+	then
+		modify($city){
+			setCurrentUnit(null)
+		}
+end
+rule "City Start Build Unit"
+	activation-group "buildUnit"
+	when
+		$city:CityDTO(
+			currentUnit!=null
+			,$currentUnit:currentUnit
+			,$cityId:id
+		) @watch(currentUnit)
+		$unitType:UnitTypeDTO(
+			ident==$currentUnit
+			,$ident:ident
+		) @watch(!*)
+		not WorkflowProcessInstance(
+			getProcessId()=="cz.muni.fi.civ.newohybat.bpmn.buildUnit"
+			,((CityDTO)getVariable("city")).getId()==$cityId
+		)
+	then
+		Map params = new HashMap();
+		params.put("unitType",$unitType);
+		params.put("city",$city);
+		params.put("unit",null);
+		params.put("resourcesSpent",0);
+		ProcessInstance pi = kcontext.getKnowledgeRuntime().createProcessInstance("cz.muni.fi.civ.newohybat.bpmn.buildUnit",params);
+		kcontext.getKnowledgeRuntime().startProcessInstance(pi.getId());
+		insert(pi);
+end
+
+rule "Remove Abandoned Unit Creation" // used when currentUnit property changed
+	activation-group "buildUnit"
+	when
+		$city:CityDTO(
+			currentUnit!=null
+			,$currentUnit:currentUnit
+			,$cityId:id
+		) @watch(currentUnit)
+		$unitType:UnitTypeDTO(
+			ident==$currentUnit
+			,$ident:ident
+		) @watch(!*)
+		WorkflowProcessInstance(
+			getProcessId()=="cz.muni.fi.civ.newohybat.bpmn.buildUnit"
+			,((CityDTO)getVariable("city")).getId()==$cityId
+			,((UnitTypeDTO)getVariable("unitType")).getIdent()!=$currentUnit
+			,$processId:id
+		)
+	then
+		kcontext.getKnowledgeRuntime().signalEvent("cancel",null,$processId);
+end
+
+rule "Cancel Unit Build"
+	activation-group "buildUnit"
+	when
+		$city:CityDTO(
+			$currentUnit:currentUnit
+			,$cityId:id
+		) @watch(!*)
+		$pc:UnitEvent(
+			cityId==$cityId
+		) from entry-point ActionCanceledStream
+		$pi:WorkflowProcessInstance(
+			getProcessId()=="cz.muni.fi.civ.newohybat.bpmn.buildUnit"
+			,((CityDTO)getVariable("city")).getId()==$cityId
+			,$processId:id
+		)
+	then
+		modify($city){
+			setCurrentUnit(null)
+		}
+		kcontext.getKnowledgeRuntime().signalEvent("cancel",null,$processId);
+end

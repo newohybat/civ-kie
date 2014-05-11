@@ -1,0 +1,175 @@
+/** ALL TESTED **/
+
+//created on: May 1, 2014
+package cz.muni.fi.civ.newohybat.drools.rules
+
+//list any import classes here.
+import java.util.ArrayList;
+
+
+
+//declare any global variables here
+
+rule "Unit Busy When Moves"
+	dialect "mvel"
+	when
+		$unit:UnitDTO()
+		$pi:WorkflowProcessInstance(
+			getProcessId()=="cz.muni.fi.civ.newohybat.bpmn.moveUnit"
+			,getVariable("unit")==$unit
+		)
+	then
+		insertLogical(new UnitBusy($unit, $pi))
+end
+rule "Unit Begin Move"
+	dialect "mvel"
+	when
+		$unit:UnitDTO(
+			currentAction=="move"
+			,tile!=targetTile
+			,$tile:tile
+			,$target:targetTile
+		)
+		UnitIdle(
+			unit==$unit
+		)
+		$startTile:TileDTO(
+			id==$tile
+		)
+		$targetTile:TileDTO(
+			id==$target
+		)
+	then
+		insertLogical(new MovementPlan($unit.id,$startTile,$targetTile,new ArrayList()))
+end
+rule "Unit Move Action Cancelled"
+	when
+		$unit: UnitDTO(
+			$unitId:id
+		)
+ 		$pc:MoveEvent(
+			unitId==$unitId
+		) from entry-point ActionCanceledStream
+		$pi:WorkflowProcessInstance(
+			getProcessId()=="cz.muni.fi.civ.newohybat.bpmn.moveUnit"
+			,$processId:id
+			,((UnitDTO)getVariable("unit")).getId()==$unitId
+		)	
+	then
+		kcontext.getKnowledgeRuntime().signalEvent("cancel",null,$processId);
+		modify($unit){
+			setCurrentAction(null)
+			, setTargetTile(null)
+		}
+end
+rule "Add First Tile To Path"
+	dialect "mvel"
+	when
+		$plan:MovementPlan(
+			path.size()==0
+			,$path:path
+			,$target:target
+			,$start:start
+		)
+		$targetTile:TileDTO(
+			$targetX:posX
+			,$targetY:posY
+		) from $target
+		$startTile:TileDTO(
+			$startX:posX
+			,$startY:posY
+		) from $start
+		$nextTile:TileDTO(
+			posX == ($startX + (int)Math.signum($targetX-$startX))
+			, posY == ($startY+(((int)Math.signum($targetX-$startX))==0?((int)Math.signum($targetY-$startY)):0))
+		)
+	then
+		ArrayList newPath = $path
+		$path.add($nextTile)
+		modify($plan){
+			setPath(newPath)	
+		}
+end
+rule "Add Tiles To MovementPlan In Y Dimension"
+	dialect "mvel"
+	when
+		$plan:MovementPlan(
+			path not contains target
+			,path.size()>0
+			,$path:path
+			,$target:target
+		)
+		$targetTile:TileDTO(
+			$posX:posX
+			,$targetY:posY
+		) from $target
+		$lastTile:TileDTO(
+			posX==$posX
+			, $posY:posY
+		) from $path.get($path.size()-1)
+		$nextTile:TileDTO(
+			posX==$posX
+			, posY == $posY + (int)Math.signum($targetY-$posY)
+		)
+	then
+		ArrayList newPath = $path
+		$path.add($nextTile)
+		modify($plan){
+			setPath(newPath)	
+		}
+end
+
+rule "Add Tiles To MovementPlan In X Dimension"
+	dialect "mvel"
+	when
+		$plan:MovementPlan(
+			path not contains target
+			,path.size()>0
+			,$path:path
+			,$target:target
+		)
+		$targetTile:TileDTO(
+			$targetX:posX
+		) from $target
+		$lastTile:TileDTO(
+			id==$path.get($path.size()-1)
+			, posX!=$targetX
+			, $posY:posY
+			, $posX:posX
+		) from $path.get($path.size()-1)
+		$nextTile:TileDTO(
+			posX == $posX + (int)Math.signum($targetX-$posX)
+			,posY == $posY
+		)
+	then
+		ArrayList newPath = $path
+		$path.add($nextTile)
+		modify($plan){
+			setPath(newPath)	
+		}
+end
+
+rule "When MovementPlan Complete Start Move"
+	dialect "mvel"
+	when
+		$plan:MovementPlan(
+			path contains target
+			,$path:path
+			,$unitId:unit
+		)
+		$unit:UnitDTO(
+			id==$unitId
+		)
+		UnitIdle(
+			unit==$unit
+		)
+	then
+		Map params = new HashMap();
+		params.put("step", 0);
+		params.put("unit",$unit);
+		params.put("path",$path);
+		params.put("timer-delay","0s");
+		ProcessInstance pi = kcontext.getKnowledgeRuntime().createProcessInstance("cz.muni.fi.civ.newohybat.bpmn.moveUnit",params);
+		kcontext.getKnowledgeRuntime().startProcessInstance(pi.getId());
+		insert(pi);
+end

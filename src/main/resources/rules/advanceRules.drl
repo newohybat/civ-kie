@@ -1,0 +1,206 @@
+/** ALL TESTED **/
+//created on: Mar 16, 2014
+package cz.muni.fi.civ.newohybat.drools.rules
+
+//list any import classes here.
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.List;
+import java.util.HashMap;
+ 
+//declare any global variables here
+
+rule "Advance Finished"
+	dialect "mvel" 
+	when
+		$ad:AdvanceEvent(
+			$playerId:playerId
+		) from entry-point ActionFinishedStream
+	then
+		insertLogical(new AdvanceReached($playerId))
+end
+
+rule "Set Enabled Advances"
+	dialect "mvel"
+	when
+    	AdvanceReached(
+    		$playerId:playerId
+    	)
+    	$player:PlayerDTO(
+    		id==$playerId
+    		,$advances:advances
+    	) @watch(!*)
+    	accumulate(
+    		$advance:AdvanceDTO(
+    			ident memberOf $advances
+    			,$enabledAdvances:enabledAdvances 
+    		)@watch(!*)
+    		and $str:String() from $enabledAdvances
+    		,$allEnabledAdvances:collectSet($str)	
+    	)
+    	
+    then
+    	$adv = new HashSet($allEnabledAdvances);
+    	$adv.removeAll($advances);
+    	modify($player){
+    		setEnabledAdvances($adv)
+    	}	
+end
+rule "Set Enabled Governments"
+	dialect "mvel"
+	when
+    	AdvanceReached(
+    		$playerId:playerId
+    	)
+    	$player:PlayerDTO(
+    		id==$playerId
+    		,$advances:advances
+    	) @watch(!*)
+    	accumulate(
+    		$advance:AdvanceDTO(
+    			ident memberOf $advances
+    			,$enabledGovernments:enabledGovernments 
+    		)@watch(!*)
+    		and $str:String() from $enabledGovernments
+    		,$allEnabledGovernments:collectSet($str)	
+    	)
+    then
+    	
+    	$govs = new HashSet($allEnabledGovernments);
+    	modify($player){
+    		setEnabledGovernments($govs)
+    	}
+    	
+end
+
+rule "Advance Reached Enable Improvements"
+	dialect "mvel"
+	when
+		AdvanceReached(
+			$playerId:playerId
+		)
+	then
+		insert(new UpdateEnabledImprovementsRequest($playerId))
+end
+
+rule "Wonder Built Update Enabled Improvements"
+	dialect "mvel"
+	when
+		WonderBuilt()
+		PlayerDTO(
+			$playerId:id
+		)
+	then
+		insert(new UpdateEnabledImprovementsRequest($playerId))
+end
+
+rule "Set Enabled Improvements"
+	dialect "mvel"
+	when
+		UpdateEnabledImprovementsRequest(
+    		$playerId:playerId
+    	)
+    	$player:PlayerDTO(
+    		id==$playerId
+	    	,$advances:advances
+	    ) @watch(!*)
+	    $city:CityDTO(
+	    	owner==$playerId
+	    	, $cityImprovements:improvements
+	    ) @watch(!*)
+	    accumulate(
+    		$advance:AdvanceDTO(
+    			ident memberOf $advances
+    			,$enabledCityImprovements:enabledCityImprovements
+    		) @watch(!*)
+    		and $imp:String() from $enabledCityImprovements
+    		and not WonderBuilt(ident==$imp)
+    		,$allEnabledImprovements:collectSet($imp)
+    	)
+	then
+		
+		$imps = new HashSet($allEnabledImprovements);
+		$imps.removeAll($cityImprovements);
+		modify($city){
+			setEnabledImprovements($imps)
+		}
+end
+
+
+rule "Set Enabled Unit Types"
+	dialect "mvel"
+	when
+		AdvanceReached(
+    		$playerId:playerId
+    	)
+    	$player:PlayerDTO(
+    		id==$playerId
+	    	,$advances:advances
+	    ) @watch(!*)
+	    $city:CityDTO(
+	    	owner==$playerId
+	    ) @watch(!*)
+	    accumulate(
+    		$advance:AdvanceDTO(
+    			ident memberOf $advances
+    			,$enabledUnitTypes:enabledUnitTypes
+    		) @watch(!*) 
+    		and $type:String() from $enabledUnitTypes
+    		,$allEnabledUnitTypes:collectSet($type)	
+    	)
+	then
+		$types = new HashSet($allEnabledUnitTypes);
+		modify($city){
+			setEnabledUnitTypes($types)
+		}
+end
+
+rule "Discover Advance"
+	dialect "mvel"
+	no-loop
+	when
+		$player:PlayerDTO(
+			currentAdvance!=null
+			,currentAdvance memberOf enabledAdvances
+			,$currentAdvance:currentAdvance
+			,$playerId:id
+		) @watch(currentAdvance)
+		$advance:AdvanceDTO(
+			ident==$currentAdvance
+		)@watch(!*)
+		not WorkflowProcessInstance(
+			getProcessId()=="cz.muni.fi.civ.newohybat.bpmn.discoverAdvance"
+			,((PlayerDTO)getVariable("player")).getId()==$playerId
+		)
+	then
+		Map params = new HashMap();
+		params.put("researchSpent", 0);
+		params.put("player",$player);
+		params.put("advance",$advance);
+		ProcessInstance pi = kcontext.getKnowledgeRuntime().createProcessInstance("cz.muni.fi.civ.newohybat.bpmn.discoverAdvance",params);
+		insert(pi);
+		kcontext.getKnowledgeRuntime().startProcessInstance(pi.getId());
+end
+
+rule "Cancel Advance Research"
+	dialect "mvel"
+	when
+		$player:PlayerDTO(
+			$playerId:id
+			,$currentAdvance:currentAdvance
+		) @watch(!*)
+		$pc:AdvanceEvent(
+			playerId==$playerId
+		) from entry-point ActionCanceledStream
+		$pi:WorkflowProcessInstance(
+			getProcessId()=="cz.muni.fi.civ.newohybat.bpmn.discoverAdvance"
+			,$processId:id
+			,((PlayerDTO)getVariable("player")).getId()==$playerId
+		)
+	then
+		modify($player){
+			setCurrentAdvance(null)
+		}
+		kcontext.getKnowledgeRuntime().signalEvent("cancel",null,$processId);
+end

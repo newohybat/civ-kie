@@ -1,0 +1,79 @@
+/** ALL TESTED **/
+
+//created on: May 4, 2014
+package cz.muni.fi.civ.newohybat.drools.rules
+
+//list any import classes here.
+
+
+
+//declare any global variables here
+rule "Unit TileImprovement Action Cancelled"
+	when
+		$unit: UnitDTO(
+			$unitId:id
+		)
+ 		$pc:TileImprovementEvent(
+			unitId==$unitId
+		) from entry-point ActionCanceledStream
+		$pi:WorkflowProcessInstance(
+			getProcessId()=="cz.muni.fi.civ.newohybat.bpmn.buildTileImprovement"
+			,$processId:id
+			,((UnitDTO)getVariable("unit")).getId()==$unitId
+		)	
+	then
+		kcontext.getKnowledgeRuntime().signalEvent("cancel",null,$processId);
+		modify($unit){
+			setCurrentAction(null)
+		}
+end
+
+rule "Build Irrigation"
+	when
+		$unit: UnitDTO(
+			currentAction memberOf actions
+			, currentAction == "buildIrrigation"
+			, $ownerId:owner
+			, $unitId:id
+			, $tileId:tile
+			, $actions:actions
+		) @watch(currentAction)
+		UnitIdle(
+			unit==$unit
+		)
+		$player:PlayerDTO( 
+			id==$ownerId
+			, $turnsAvailable:turnsAvailable
+		) 
+		$imp:TileImprovementDTO(
+			ident=="irrigation"
+		)
+		$tile:TileDTO(
+			id==$tileId
+			// ,improvements not contains "irrigation"
+		)
+		not WorkflowProcessInstance(
+			getProcessId()=="cz.muni.fi.civ.newohybat.bpmn.buildTileImprovement"
+			,getVariable("unit")==$unit
+		)
+	then
+		Map params = new HashMap();
+		params.put("turnsSpent", 0);
+		params.put("unit",$unit);
+		params.put("imp",$imp);
+		params.put("tile",$tile);
+		ProcessInstance pi = kcontext.getKnowledgeRuntime().createProcessInstance("cz.muni.fi.civ.newohybat.bpmn.buildTileImprovement",params);
+		kcontext.getKnowledgeRuntime().startProcessInstance(pi.getId());
+		insert(pi);
+end
+
+rule "Unit Is Busy When Improving Tile"
+	when
+		$unit:UnitDTO()
+		$pi:WorkflowProcessInstance(
+			getProcessId()=="cz.muni.fi.civ.newohybat.bpmn.buildTileImprovement"
+			,getVariable("unit")==$unit
+		)
+	then
+		insertLogical(new UnitBusy($unit, $pi))
+end

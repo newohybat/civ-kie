@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kmodule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+         xmlns="http://jboss.org/kie/6.0.0/kmodule">
+
+    <kbase name="org.kie.kbase1" equalsBehavior="equality" eventProcessingMode="stream" default="true">
+        <!-- <ksession name="org.kie.kbase1.ksession1" type="stateful" clockType="pseudo" default="true">
+        	<workItemHandlers>
+        		<workItemHandler name="Unit" type="cz.muni.fi.civ.newohybat.jbpm.itemhandler.UnitWorkItemHandler"/>
+        	</workItemHandlers>
+        	<listeners>
+        		<agendaEventListener type="cz.muni.fi.civ.newohybat.drools.listeners.AgendaListener"/>
+        		<processEventListener type="cz.muni.fi.civ.newohybat.drools.listeners.ProcessListener"/>
+        	</listeners>
+        </ksession>-->
+    </kbase>
+</kmodule>

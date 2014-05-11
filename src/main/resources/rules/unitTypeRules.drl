@@ -1,0 +1,297 @@
+//created on: May 4, 2014
+package cz.muni.fi.civ.newohybat.drools.rules
+
+//list any import classes here.
+
+
+
+//declare any global variables here
+
+rule "Armor"
+	no-loop 
+	when
+		$unit:UnitTypeDTO(ident=="armor")
+	then
+		modify($unit){
+			setAttackStrength(10)
+			,setDefenseStrength(5) 
+			,setMovementPoints(3)
+		}
+end 
+
+rule "Artillery"
+	no-loop
+	when
+		$unit:UnitTypeDTO(ident=="artillery")
+	then
+		modify($unit){
+			setAttackStrength(12)
+			,setDefenseStrength(2)
+			,setMovementPoints(2)
+		}
+end
+
+rule "Battleship"
+	no-loop
+	when
+		$unit:UnitTypeDTO(ident=="battleship")
+	then
+		modify($unit){
+			setAttackStrength(18)
+			,setDefenseStrength(12)
+			,setMovementPoints(4)
+		}
+end
+
+rule "Bomber"
+	no-loop
+	when
+		$unit:UnitTypeDTO(ident=="bomber")
+	then
+		modify($unit){
+			setAttackStrength(12)
+			,setDefenseStrength(1)
+			,setMovementPoints(8)
+		}
+end
+
+rule "Cannon"
+	no-loop
+	when
+		$unit:UnitTypeDTO(ident=="cannon")
+	then
+		modify($unit){
+			setAttackStrength(8)
+			,setDefenseStrength(1)
+			,setMovementPoints(1)
+		}
+end
+
+rule "Carrier"
+	no-loop
+	when
+		$unit:UnitTypeDTO(ident=="carrier")
+	then
+		modify($unit){
+			setAttackStrength(1)
+			,setDefenseStrength(12)
+			,setMovementPoints(5)
+		}
+end
+
+rule "Catapult"
+	no-loop
+	when
+		$unit:UnitTypeDTO(ident=="catapult")
+	then
+		modify($unit){
+			setAttackStrength(6)
+			,setDefenseStrength(1)
+			,setMovementPoints(1)
+		}
+end
+
+rule "Cavalry"
+	no-loop
+	when
+		$unit:UnitTypeDTO(ident=="cavalry")
+	then
+		modify($unit){
+			setAttackStrength(2)
+			,setDefenseStrength(1)
+			,setMovementPoints(2)
+		}
+end
+
+rule "Chariot"
+	no-loop
+	when
+		$unit:UnitTypeDTO(ident=="chariot")
+	then
+		modify($unit){
+			setAttackStrength(4)
+			,setDefenseStrength(1)
+			,setMovementPoints(2)
+		}
+end
+
+rule "Cruiser"
+	no-loop
+	when
+		$unit:UnitTypeDTO(ident=="cruiser")
+	then
+		modify($unit){
+			setAttackStrength(6)
+			,setDefenseStrength(6)
+			,setMovementPoints(6)
+		}
+end
+
+rule "Fighter"
+	no-loop
+	when
+		$unit:UnitTypeDTO(ident=="fighter")
+	then
+		modify($unit){
+			setAttackStrength(4)
+			,setDefenseStrength(2)
+			,setMovementPoints(10)
+		}
+end
+
+rule "Frigate"
+	no-loop
+	when
+		$unit:UnitTypeDTO(ident=="frigate")
+	then
+		modify($unit){
+			setAttackStrength(2)
+			,setDefenseStrength(2)
+			,setMovementPoints(3)
+		}
+end
+
+rule "Ironclad"
+	no-loop
+	when
+		$unit:UnitTypeDTO(ident=="ironclad")
+	then
+		modify($unit){
+			setAttackStrength(4)
+			,setDefenseStrength(4)
+			,setMovementPoints(4)
+		}
+end
+
+rule "Knight"
+	no-loop
+	when
+		$unit:UnitTypeDTO(ident=="knight")
+	then
+		modify($unit){
+			setAttackStrength(4)
+			,setDefenseStrength(2)
+			,setMovementPoints(2)
+		}
+end
+
+rule "Legion"
+	no-loop
+	when
+		$unit:UnitTypeDTO(ident=="legion")
+	then
+		modify($unit){
+			setAttackStrength(3)
+			,setDefenseStrength(1)
+			,setMovementPoints(1)
+		}
+end
+
+rule "MechanizedInfantry"
+	no-loop
+	when
+		$unit:UnitTypeDTO(ident=="mechanizedInfantry")
+	then
+		modify($unit){
+			setAttackStrength(6)
+			,setDefenseStrength(6)
+			,setMovementPoints(3)
+		}
+end
+
+rule "Militia"
+	no-loop
+	when
+		$unit:UnitTypeDTO(ident=="militia")
+	then
+		modify($unit){
+			setAttackStrength(1)
+			,setDefenseStrength(1)
+			,setMovementPoints(1)
+		}
+end
+
+rule "Musketeer"
+	no-loop
+	when
+		$unit:UnitTypeDTO(ident=="musketeer")
+	then
+		modify($unit){
+			setAttackStrength(2)
+			,setDefenseStrength(3)
+			,setMovementPoints(1)
+		}
+end
+
+rule "Nuclear"
+	no-loop
+	when
+		$unit:UnitTypeDTO(ident=="nuclear")
+	then
+		modify($unit){
+			setAttackStrength(99)
+			,setDefenseStrength(0)
+			,setMovementPoints(16)
+		}
+end
+
+rule "Phalanx"
+	salience 1000
+	no-loop
+	when
+		$unit:UnitTypeDTO(ident=="phalanx")
+	then
+		modify($unit){
+			setAttackStrength(1)
+			,setDefenseStrength(2)
+			,setMovementPoints(1)
+		}
+end
+
+rule "Rifleman"
+	no-loop
+	when
+		$unit:UnitTypeDTO(ident=="rifleman")
+	then
+		modify($unit){
+			setAttackStrength(3)
+			,setDefenseStrength(5)
+			,setMovementPoints(1)
+		}
+end
+
+rule "Sail"
+	no-loop
+	when
+		$unit:UnitTypeDTO(ident=="sail")
+	then
+		modify($unit){
+			setAttackStrength(1)
+			,setDefenseStrength(1)
+			,setMovementPoints(3)
+		}
+end
+
+rule "Submarine"
+	no-loop
+	when
+		$unit:UnitTypeDTO(ident=="submarine")
+	then
+		modify($unit){
+			setAttackStrength(8)
+			,setDefenseStrength(2)
+			,setMovementPoints(3)
+		}
+end
+
+rule "Transport"
+	no-loop
+	when
+		$unit:UnitTypeDTO(ident=="transport")
+	then
+		modify($unit){
+			setAttackStrength(1)
+			,setDefenseStrength(0)
+			,setMovementPoints(3)
+		}
+end

@@ -1,0 +1,116 @@
+/** NOT TESTED **/
+//created on: Apr 8, 2014
+package cz.muni.fi.civ.newohybat.drools.rules
+
+//list any import classes here.
+import java.util.Collection;
+
+
+//declare any global variables here
+query "getAdvance"(String $ident)
+	$advance:AdvanceDTO(ident==$ident)
+end
+query "getAdvances"(Collection $idents)
+	$advance:AdvanceDTO(ident memberOf $idents)
+end
+query "getAllAdvances"
+	$advance:AdvanceDTO()
+end
+query "getCity"(Long $id)
+	$city:CityDTO(id==$id)
+end
+query "getCities"(Collection $ids)
+	$city:CityDTO(id memberOf $ids)
+end
+query "getAllCities"
+	$city:CityDTO()
+end
+query "getCityImprovement"(String $ident)
+	$cityImprovement:CityImprovementDTO(ident==$ident)
+end
+query "getCityImprovements"(Collection $idents)
+	$cityImprovement:CityImprovementDTO(ident memberOf $idents)
+end
+query "getAllCityImprovements"
+	$cityImprovement:CityImprovementDTO()
+end
+query "getGovernment"(String $ident)
+	$government:GovernmentDTO(ident==$ident)
+end
+query "getGovernments"(Collection $idents)
+	$government:GovernmentDTO(ident memberOf $idents)
+end
+query "getAllGovernments"
+	$government:GovernmentDTO()
+end
+query "getPlayer"(Long $id)
+	$player:PlayerDTO(id==$id)
+end
+query "getPlayers"(Collection $ids)
+	$player:PlayerDTO(id memberOf $ids)
+end
+query "getAllPlayers"
+	$player:PlayerDTO()
+end
+query "getSpecial"(String $ident)
+	$special:SpecialDTO(ident==$ident)
+end
+query "getSpecials"(Collection $idents)
+	$special:SpecialDTO(ident memberOf $idents)
+end
+query "getAllSpecials"
+	$special:SpecialDTO()
+end
+query "getTerrain"(String $ident)
+	$terrain:TerrainDTO(ident==$ident)
+end
+query "getTerrains"(Collection $idents)
+	$terrain:TerrainDTO(ident memberOf $idents)
+end
+query "getAllTerrains"
+	$terrain:TerrainDTO()
+end
+query "getTile"(Long $id)
+	$tile:TileDTO(id==$id)
+end
+query "getTiles"(Collection $ids)
+	$tile:TileDTO(id memberOf $ids)
+end
+query "getAllTiles"
+	$tile:TileDTO()
+end
+query "getTileByPosition"(Long $x,Long $y)
+	$tile:TileDTO(posX==$x,posY==$y)
+end
+query "getTileImprovement"(String $ident)
+	$tileImprovement:TileImprovementDTO(ident==$ident)
+end
+query "getTileImprovements"(Collection $idents)
+	$tileImprovement:TileImprovementDTO(ident memberOf $idents)
+end
+query "getAllTileImprovements"
+	$tileImprovement:TileImprovementDTO()
+end
+query "getUnit"(Long $id)
+	$unit:UnitDTO(id==$id)
+end
+query "getUnits"(Collection $ids)
+	$unit:UnitDTO(id memberOf $ids)
+end
+query "getAllUnits"
+	$unit:UnitDTO()
+end
+query "getUnitType"(String $ident)
+	$unitType:UnitTypeDTO(ident==$ident)
+end
+query "getUnitTypes"(Collection $idents)
+	$unitType:UnitTypeDTO(ident memberOf $idents)
+end
+query "getAllUnitTypes"
+	$unitType:UnitTypeDTO()
+end
+query "getTurnProcess"
+	$process:WorkflowProcessInstance(
+		processId=="cz.muni.fi.civ.newohybat.bpmn.turn"
+	)
+end

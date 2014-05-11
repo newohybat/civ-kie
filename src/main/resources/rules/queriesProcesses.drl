@@ -1,0 +1,16 @@
+//created on: May 6, 2014
+package cz.muni.fi.civ.newohybat.drools.rules
+
+//list any import classes here.
+
+
+
+//declare any global variables here
+
+query "getBuildCityImprovementProcess"(Long $cityId)
+	$process:WorkflowProcessInstance(
+		processId=="cz.muni.fi.civ.newohybat.bpmn.buildCityImprovement"
+		,((CityDTO)getVariable("city")).getId()==$cityId
+	)
+end
+

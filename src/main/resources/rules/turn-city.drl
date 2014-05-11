@@ -1,0 +1,626 @@
+/** ALL TESTED **/
+//created on: Feb 3, 2014
+package cz.muni.fi.civ.newohybat.drools.rules
+
+dialect "mvel"
+
+//list any import classes here.
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.HashSet;
+
+
+//declare any global variables here
+
+global Integer foodStockLimit
+
+rule "Update Properties For Added City"
+salience 15
+	when
+		CityDTO(
+			$cityId:id
+		) @watch(!*)
+	then
+		insertLogical(new UpdateCityProduction($cityId))
+		insertLogical(new CityImprovementChange($cityId))
+end
+rule "City Need To Update Food Consumption On Size Change"
+	salience 15
+	when
+		CityDTO(
+			$cityId:id
+		)@watch(size)
+	then
+		insertLogical(new UpdateFoodConsumption($cityId))
+		insertLogical(new UpdateUnitsSupport($cityId))
+end
+
+rule "Update Productions On New Improvement"
+	when 
+		CityDTO(
+			$cityId:id
+		)
+		CityImprovementEvent(
+			cityId==$cityId
+		) from entry-point "ActionCompletedStream"
+	then
+		insertLogical(new UpdateCityProduction($cityId))
+		insertLogical(new CityImprovementChange($cityId))
+end
+
+rule "Update Units Support On New Unit"
+	when
+		CityDTO(
+			$cityId:id
+		)
+		UnitEvent(
+			cityId==$cityId
+		) from entry-point "ActionCompletedStream"
+	then
+		insertLogical(new UpdateFoodConsumption($cityId))
+		insertLogical(new UpdateUnitsSupport($cityId))
+end
+
+rule "Update Units Support On Unit Death"
+	when
+		UnitDead(
+			$unit:unit
+		)
+		CityDTO(
+			homeUnits contains $unit.id
+			, $cityId:id
+		)
+	then
+		insertLogical(new UpdateFoodConsumption($cityId))
+		insertLogical(new UpdateUnitsSupport($cityId))
+end
+
+rule "Get City Disorder"
+	ruleflow-group "cityMood"
+	dialect "mvel"
+	no-loop
+    when
+        $city : CityDTO (
+        	peopleUnhappy > peopleHappy
+        ) @watch(peopleUnhappy, peopleHappy)
+    then
+        modify($city) {
+		   setDisorder(true)
+		};
+end
+
+rule "Get City We Love Ruler Day"
+	dialect "mvel"
+	ruleflow-group "cityMood"
+	no-loop
+	when
+		$city : CityDTO(
+			size>=3, peopleUnhappy==0
+			, peopleHappy>= (peopleContent + peopleEntertainers+ peopleTaxmen+ peopleScientists)
+		) @watch(size, peopleUnhappy, peopleContent, peopleEntertainers, peopleTaxmen, peopleScientists)
+	then
+		modify($city){
+			setWeLoveDay(true);
+		};
+end
+
+rule "Tile With Enemy Unit Is Not Managed Anymore"
+	dialect "mvel"
+	ruleflow-group "updateCityTiles"
+	no-loop
+    when
+        $city:CityDTO (
+        	$tiles:managedTiles
+        	, $cityOwner: owner
+        	, $peopleEntertainers:peopleEntertainers
+        ) @watch(owner)
+        UnitDTO(
+        	tile memberOf $tiles
+        	,$tile:tile
+        	, owner != $cityOwner
+        )
+    then
+    	$newManagedTiles = new HashSet($tiles);
+    	$newManagedTiles.remove($tile);
+    	modify($city) {
+        	setManagedTiles($newManagedTiles)
+        	,setPeopleEntertainers($peopleEntertainers + 1)
+		};
+		
+end
+
+rule "City Improvements Upkeep"
+	dialect "mvel"
+	ruleflow-group "manageConsumptions"
+	no-loop
+	when
+		CityImprovementChange(
+			$cityId:cityId
+		)
+		$city: CityDTO(
+			id==$cityId
+			,$improvements:improvements
+			,improvements.size()>0
+		)
+		accumulate(
+			CityImprovementDTO(
+				ident memberOf $improvements
+				,$upkeepCost:upkeepCost
+				, upkeepCost!=null
+			)
+			, $sumUpkeep:sum($upkeepCost)
+		)
+		
+	then
+		modify($city){
+			setImprovementsUpkeep($sumUpkeep)
+		}
+end
+
+
+rule "Trade To Luxuries/Taxes/Research Resolution"
+	dialect "mvel"
+	ruleflow-group "manageSurpluses"
+	salience 10 // before luxuries, taxes, research are worked with
+	when
+		$city:CityDTO(
+			$tradeProduction:tradeProduction
+			,$ownerId:owner
+		) @watch(!*,tradeProduction)
+		PlayerDTO(
+			id==$ownerId
+			, $taxesRatio:taxesRatio
+			, $luxuriesRatio:luxuriesRatio
+			, $researchRatio:researchRatio
+		) @watch(!*,taxesRatio, luxuriesRatio, researchRatio)
+	then
+		$luxuriesAmount = (Integer)Math.floor((double)$tradeProduction * $luxuriesRatio/100)
+		$taxesAmount = (Integer)Math.floor((double)$tradeProduction * $taxesRatio/100)
+		$researchAmount = $tradeProduction - $luxuriesAmount - $taxesAmount
+		modify($city){
+			setLuxuriesAmount($luxuriesAmount)
+			,setTaxesAmount($taxesAmount)
+			,setResearchAmount($researchAmount)
+		}
+end
+
+
+rule "Taxes Surplus To Treasury"
+	dialect "mvel"
+	ruleflow-group "manageSurpluses"
+	when
+		$city: CityDTO(
+			$ownerId:owner
+			, taxesAmount > improvementsUpkeep
+			, $taxesIncome: taxesAmount
+			, $improvementsUpkeep: improvementsUpkeep
+		)
+		$owner: PlayerDTO(
+			id==$ownerId
+			, $treasury: treasury			
+		)@watch(!*)
+		TurnEvent() from entry-point "GameControlStream"
+	then
+		modify($owner){
+			setTreasury($treasury + ($taxesIncome-$improvementsUpkeep))
+		}
+end
+
+rule "Taxes Shortage Covered From Treasury"
+	dialect "mvel"
+	ruleflow-group "manageSurpluses"
+	activation-group "taxesAmountResolution"
+	when
+		$city: CityDTO(
+			$ownerId:owner
+			, taxesAmount < improvementsUpkeep
+			, $taxesIncome: taxesAmount
+			, $improvementsUpkeep: improvementsUpkeep
+		)@watch(!*,taxesAmount,improvementsUpkeep)
+		$owner: PlayerDTO(
+			id==$ownerId
+			, treasury >= ($improvementsUpkeep-$taxesIncome)
+			, $treasury: treasury			
+		)@watch(!*)
+		TurnEvent() from entry-point "GameControlStream"
+	then
+		modify($owner){
+			setTreasury($treasury + ($taxesIncome-$improvementsUpkeep))
+		}
+end
+
+rule "Taxes Shortage Not Covered From Treasury"
+	dialect "mvel"
+	ruleflow-group "manageSurpluses"
+	activation-group "taxesAmountResolution"
+	no-loop
+	when
+		$city: CityDTO(
+			$ownerId:owner
+			, taxesAmount < improvementsUpkeep
+			, $taxesIncome: taxesAmount
+			, $improvementsUpkeep: improvementsUpkeep
+			, $improvements: improvements
+		) @watch(!*, taxesAmount, improvementsUpkeep)
+		$owner: PlayerDTO(
+			id==$ownerId
+			, treasury < ($improvementsUpkeep-$taxesIncome)
+			, $treasury: treasury			
+		)@watch(!*)
+		TurnEvent() from entry-point "GameControlStream"
+	then
+		// set treasury to zero and remove one improvement
+		modify($owner){
+			setTreasury(0)
+		}
+		$list = new ArrayList($improvements)
+		if($list.size()>0)$list.remove(0);
+		modify($city){
+			setImprovements(new HashSet($list))
+		}
+end
+
+rule "Init Player Properties For New Turn"
+	dialect "mvel"
+	salience 50
+	ruleflow-group "manageSurpluses"
+	when
+		$player:PlayerDTO()@watch(!*)
+		TurnEvent() from entry-point "GameControlStream"
+	then
+		modify($player){
+			setResearch(0)
+			,setResearchSpent(0)
+		}
+end
+
+
+rule "Research Of City To Global"
+	dialect "mvel"
+	ruleflow-group "manageSurpluses"
+	salience -5 // lesser than effects of city improvements
+	when
+		$city: CityDTO(
+			$ownerId:owner
+			,researchAmount>0
+			,$researchAmount: researchAmount
+		)@watch(researchAmount)
+		$owner: PlayerDTO(
+			id==$ownerId
+			, $globalResearch: research			
+		)@watch(!*)
+		TurnEvent() from entry-point "GameControlStream"
+	then
+		modify($owner){
+			setResearch($globalResearch + $researchAmount)
+		}
+end
+
+rule "Population Point Requires 2 Food Units"
+	dialect "mvel"
+	ruleflow-group "manageConsumptions"
+	salience 100
+	when
+		$city: CityDTO(
+			$size: size
+			, $foodConsumption:foodConsumption
+			, $cityId:id
+		)@watch(!*)
+		UpdateFoodConsumption(cityId==$cityId)
+	then
+		modify($city){
+			setFoodConsumption($size*2)
+		}
+end
+
+rule "Food Surplus To Stock"
+	dialect "mvel"
+	ruleflow-group "manageSurpluses"
+	no-loop
+	when
+		$city: CityDTO(
+			$ownerId:owner
+			, foodProduction > foodConsumption
+			, $foodProduction : foodProduction
+			, $foodConsumption : foodConsumption
+			, $foodStock : foodStock
+		) @watch(foodProduction,foodConsumption)
+		TurnEvent() from entry-point "GameControlStream"
+	then
+		modify($city){
+			setFoodStock($foodStock + ($foodProduction-$foodConsumption))
+		}
+end
+rule "Food Shortage Covered From Stock"
+	dialect "mvel"
+	ruleflow-group "affectPopulation"
+	no-loop true
+	when
+		$city: CityDTO(
+			$ownerId:owner
+			, foodProduction < foodConsumption
+			, foodStock >= (foodConsumption - foodProduction)
+			, $foodProduction : foodProduction
+			, $foodConsumption : foodConsumption
+			, $foodStock : foodStock
+			, $size: size
+		)
+		TurnEvent() from entry-point "GameControlStream"
+	then
+		$newStock = $foodStock-($foodConsumption - $foodProduction)
+		modify($city){
+			setFoodStock($newStock)
+		}
+end
+rule "More People Than Size"
+	dialect "mvel"
+	when
+		$city:CityDTO(
+			size<(peopleHappy + peopleContent + peopleUnhappy + peopleEntertainers + peopleScientists + peopleTaxmen)
+			, $size:size
+			, $peopleContent:peopleContent
+			, $peopleUnhappy:peopleUnhappy
+			, $peopleHappy:peopleHappy
+			, $peopleEntertainers:peopleEntertainers
+			, $peopleScientists:peopleScientists
+			, $peopleTaxmen:peopleTaxmen
+		)
+	then
+		$difference = ($peopleHappy + $peopleContent + $peopleUnhappy + $peopleEntertainers + $peopleScientists + $peopleTaxmen)-$size
+		$removedTaxmen = Math.min($difference, $peopleTaxmen);
+		$difference = $difference-$removedTaxmen;
+		$removedEntertainers = Math.min($difference, $peopleEntertainers);
+		$difference = $difference-$removedEntertainers;
+		$removedScientists = Math.min($difference, $peopleScientists);
+		$difference = $difference-$removedScientists;
+		$removedUnhappy = Math.min($difference, $peopleUnhappy);
+		$difference = $difference-$removedUnhappy;
+		$removedContent = Math.min($difference, $peopleContent);
+		$difference = $difference-$removedContent;
+		$removedHappy = Math.min($difference, $peopleHappy);
+		$difference = $difference-$removedHappy;
+		modify($city){
+			setPeopleEntertainers($peopleEntertainers-$removedEntertainers)
+			,setPeopleTaxmen($peopleTaxmen-$removedTaxmen)
+			,setPeopleScientists($peopleScientists-$removedScientists)
+			,setPeopleUnhappy($peopleUnhappy-$removedUnhappy)
+			,setPeopleContent($peopleContent-$removedContent)
+			,setPeopleHappy($peopleHappy-$removedHappy)
+		}
+		
+end
+rule "Food Shortage Not Covered From Stock"
+	dialect "mvel"
+	ruleflow-group "affectPopulation"
+	no-loop
+	when
+		$city: CityDTO(
+			$ownerId:owner
+			, foodProduction < foodConsumption
+			, foodStock < (foodConsumption - foodProduction)
+			, size>1
+			, $foodProduction : foodProduction
+			, $foodConsumption : foodConsumption
+			, $foodStock : foodStock
+			, $size: size
+		)@watch(!foodStock)
+		TurnEvent() from entry-point "GameControlStream"
+	then
+		modify($city){
+			setFoodStock(0)
+			,setSize($size-1)
+		}
+end
+
+rule "Food Stock Overflows Expand City"
+	dialect "mvel"
+	ruleflow-group "affectPopulation"
+	activation-group "expandCity"
+	when
+		$city: CityDTO(
+			foodStock>foodStockLimit
+			,$foodStock:foodStock
+			,$size:size
+			,$peopleContent: peopleContent
+		)
+		TurnEvent() from entry-point "GameControlStream"
+	then
+		modify($city){
+			setSize($size+1)
+			,setFoodStock(0)
+			,setPeopleContent($peopleContent+ 1)
+		}
+end
+
+rule "Food Stock Overflows Expand City With Granary"
+	dialect "mvel"
+	ruleflow-group "affectPopulation"
+	activation-group "expandCity"
+	salience 5 // higher than of "Food Stock Overflows Expand City"
+	when
+		$city: CityDTO(
+			foodStock>foodStockLimit
+			,$foodStock:foodStock
+			,$size:size
+			,$peopleContent: peopleContent
+			,improvements contains "granary"
+		)
+		TurnEvent() from entry-point "GameControlStream"
+	then
+		modify($city){
+			setSize($size+1)
+			,setFoodStock((int)Math.floor((double)foodStockLimit*0.5))
+			,setPeopleContent($peopleContent + 1)
+		}
+end
+
+rule "Food Stock Overflows City Reached Population Limit Without Aqueduct"
+	dialect "mvel"
+	ruleflow-group "affectPopulation"
+	activation-group "expandCity"
+	salience 10 // higher than of "Food Stock Overflows Expand City" and "Food Stock Overflows Expand City With Granary"
+	when
+		$city: CityDTO(
+			foodStock>foodStockLimit
+			,size>9
+			,$foodStock:foodStock
+			,$size:size
+			,$peopleContent: peopleContent
+			,improvements not contains "aqueduct"
+		)@watch(!*)
+		TurnEvent() from entry-point "GameControlStream"
+	then
+		modify($city){
+			setFoodStock(foodStockLimit)
+		}
+end
+
+rule "Entertainers Increase Luxuries"
+	dialect "mvel"
+	ruleflow-group "manageSurpluses"
+	salience 5 // after "Trade To Luxuries/Taxes/Research Resolution" and before city improvement effects
+	no-loop
+	when
+		$city: CityDTO(
+			peopleEntertainers>0
+			,$peopleEntertainers:peopleEntertainers
+			,$luxuriesAmount: luxuriesAmount
+		) @watch(peopleEntertainers, luxuriesAmount)
+	then
+		modify($city){
+			setLuxuriesAmount($luxuriesAmount + 2*$peopleEntertainers)
+		}
+end
+
+rule "Taxmen Increase Taxes"
+	dialect "mvel"
+	ruleflow-group "manageSurpluses"
+	salience 5 // after "Trade To Luxuries/Taxes/Research Resolution" and before city improvement effects
+	no-loop
+	when
+		$city:CityDTO(
+			peopleTaxmen>0
+			, $peopleTaxmen:peopleTaxmen
+			, $taxesAmount: taxesAmount
+		) @watch(peopleTaxmen, taxesAmount)
+	then
+		modify($city){
+			setTaxesAmount($taxesAmount + 2*$peopleTaxmen)
+		}
+end
+
+rule "Scientists Increase Research"
+	dialect "mvel"
+	ruleflow-group "manageSurpluses"
+	salience 5 // after "Trade To Luxuries/Taxes/Research Resolution" and before city improvement effects
+	no-loop
+	when
+		$city: CityDTO(
+			peopleScientists>0
+			,$peopleScientists: peopleScientists
+			,$researchAmount: researchAmount
+		) @watch (peopleScientists, researchAmount)
+	then
+		modify($city){
+			setResearchAmount($researchAmount + 2*$peopleScientists)
+		}
+end
+//
+rule "Luxuries Make People Happier"
+	dialect "mvel"
+	ruleflow-group "affectPopulation"
+	salience 15 // applied before city expand
+	when
+		$city: CityDTO(
+			luxuriesAmount>0
+			,(peopleContent + peopleUnhappy) > 0
+			,$luxuries: luxuriesAmount
+			,$peopleHappy: peopleHappy
+			,$peopleContent: peopleContent
+			,$peopleUnhappy: peopleUnhappy
+			,$luxuriesSpent: luxuriesSpent
+		) @watch(!*,luxuriesAmount)
+	then
+		$luxuriesEffect = (Integer)Math.floor($luxuries/2)
+		$contentToHappy = Math.min($luxuriesEffect, $peopleContent)
+		$restOfLuxuries = $luxuriesEffect - $contentToHappy
+		$unhappyToContent = Math.min($restOfLuxuries, $peopleUnhappy)
+		$restOfLuxuries = $restOfLuxuries - $unhappyToContent
+		modify($city){
+			setPeopleHappy($peopleHappy+ $contentToHappy)
+			,setPeopleContent($peopleContent - $contentToHappy + $unhappyToContent)
+			,setPeopleUnhappy($peopleUnhappy - $unhappyToContent)
+			,setLuxuriesSpent(2*($contentToHappy+$unhappyToContent))
+		}
+end
+
+rule "Support Of Units To Resources Consumption"
+	dialect "mvel"
+	ruleflow-group "manageConsumptions"
+	salience -5
+	when
+		$city: CityDTO(
+			$resourcesConsumption:resourcesConsumption
+			,$unitsSupport: unitsSupport
+		)@watch(!*,unitsSupport)
+	then
+		modify($city){
+			setResourcesConsumption($resourcesConsumption + $unitsSupport)
+		}
+end
+
+rule "Resources Surplus"
+	dialect "mvel"
+	ruleflow-group "manageSurpluses"
+	no-loop
+	when
+		$city: CityDTO(
+			$resourcesProduction:resourcesProduction
+			,$resourcesConsumption:resourcesConsumption
+		) @watch(!*,resourcesProduction, resourcesConsumption, resourcesSurplus)
+	then
+		modify($city){
+			setResourcesSurplus($resourcesProduction-$resourcesConsumption)
+		}
+end
+
+rule "Resources Shortage Disband Farthest Unit"
+	dialect "mvel"
+	ruleflow-group "manageSurpluses"
+	no-loop
+	when
+		$city: CityDTO(
+			resourcesSurplus<0
+			, unitsSupport>0
+			, $resourcesSurplus:resourcesSurplus
+			, $homeUnits:homeUnits
+			, $unitsSupport: unitsSupport
+		)
+		accumulate(
+			UnitTypeDTO(
+				military==true
+				,$ident:ident
+			)@watch(!*)
+			, $militaryTypes:collectSet($ident)
+		)
+		$unit: UnitDTO(
+			id memberOf $homeUnits
+			, $id:id
+			,type memberOf $militaryTypes
+			, $distanceHome:distanceHome
+		)@watch(!*)
+		not UnitDTO(
+			id memberOf $homeUnits
+			,id!=$id
+			,distanceHome>$distanceHome
+			,type memberOf $militaryTypes
+		)
+		TurnEvent() from entry-point "GameControlStream"
+	then
+		$homeUnits.remove($id)
+		insert(new UnitDead($unit,null))
+		modify($city){
+			setHomeUnits($homeUnits)
+		}
+end

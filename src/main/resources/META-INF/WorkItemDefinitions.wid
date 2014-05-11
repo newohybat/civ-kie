@@ -1,0 +1,13 @@
+import org.drools.process.core.datatype.impl.type.BooleanDataType;
+[
+  // the Unit work item
+  [
+    "name" : "Unit",
+    "displayName" : "Unit"
+  ]
+  ,// the City work item
+  [
+    "name" : "City",
+    "displayName" : "City"
+  ]
+]

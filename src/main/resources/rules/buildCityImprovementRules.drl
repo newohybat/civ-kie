@@ -1,0 +1,109 @@
+/** ALL TESTED **/
+
+//created on: May 4, 2014
+package cz.muni.fi.civ.newohybat.drools.rules
+
+//list any import classes here.
+
+
+
+//declare any global variables here
+rule "Remove CurrentImprovement Field When Not In Enabled"
+	salience 100
+	when
+		$city:CityDTO(
+			currentImprovement not memberOf enabledImprovements
+		)
+	then
+		modify($city){
+			setCurrentImprovement(null)
+		}
+end
+
+rule "Build City Improvement"
+	when
+		$city:CityDTO(
+			$cityId:id
+			,currentImprovement!=null
+			,$currentImprovement:currentImprovement
+			,currentImprovement memberOf enabledImprovements
+		)
+		$imp:CityImprovementDTO(
+			ident==$currentImprovement
+		)
+		not(
+			WorkflowProcessInstance(
+				getProcessId()=="cz.muni.fi.civ.newohybat.bpmn.buildCityImprovement"
+				,((CityDTO)getVariable("city")).getId()==$cityId
+			)
+		)
+	then
+		Map params = new HashMap();
+		params.put("city",$city);
+		params.put("imp",$imp);
+		params.put("resourcesSpent",0);
+		ProcessInstance pi = kcontext.getKnowledgeRuntime().createProcessInstance("cz.muni.fi.civ.newohybat.bpmn.buildCityImprovement",params);
+		kcontext.getKnowledgeRuntime().startProcessInstance(pi.getId());
+		insert(pi);
+end
+
+rule "CityImprovement Action Cancelled"
+	when
+		$city: CityDTO(
+			$cityId:id
+		)
+		$pc:CityImprovementEvent( 
+			cityId==$cityId
+		) from entry-point ActionCanceledStream
+		$pi:WorkflowProcessInstance(
+			getProcessId()=="cz.muni.fi.civ.newohybat.bpmn.buildCityImprovement"
+			,$processId:id
+			,((CityDTO)getVariable("city")).getId()==$cityId
+		)	
+	then
+		modify($city){
+			setCurrentImprovement(null)
+		}
+		kcontext.getKnowledgeRuntime().signalEvent("cancel",null,$processId);
+end
+
+rule "Wonder Already Built"
+	dialect "mvel"
+	when
+		CityImprovementDTO(
+			wonder==true
+			, $imp:ident
+		)@watch(!*)
+		CityImprovementChange(
+			$cityId:cityId
+		)
+		CityDTO(
+			id == $cityId
+			,improvements contains $imp
+		)@watch(!*)
+	then
+		insert(new WonderBuilt($imp))
+end
+
+rule "Stop Building Of finished Wonder"
+	dialect "mvel"
+	when
+		WonderBuilt(
+			$imp:ident
+		)
+		$wonder:CityImprovementDTO(
+			ident==$imp
+		)
+		$pi:WorkflowProcessInstance(
+			getProcessId()=="cz.muni.fi.civ.newohybat.bpmn.buildCityImprovement"
+			,$processId:id
+			,((CityImprovementDTO)getVariable("imp")).equals($wonder)
+			,$city:((CityDTO)getVariable("city"))
+		)	
+	then
+		kcontext.getKnowledgeRuntime().signalEvent("cancel", null, $processId)
+		modify($city){
+			setCurrentImprovement(null)
+		}
+end
+

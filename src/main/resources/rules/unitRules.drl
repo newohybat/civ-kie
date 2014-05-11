@@ -1,0 +1,424 @@
+//created on: Feb 28, 2014
+package cz.muni.fi.civ.newohybat.drools.rules
+dialect "mvel"
+//list any import classes here.
+
+
+//declare any global variables here
+
+
+rule "Unit Is Idle"
+	no-loop
+	when 
+		$unit: UnitDTO()
+		UnitAlive(
+			unit==$unit
+		)
+		not UnitBusy(
+			unit==$unit
+		)
+	then
+		insertLogical(new UnitIdle($unit))
+end
+rule "Unit Is Alive"
+	no-loop
+	when 
+		$unit: UnitDTO()
+		not UnitDead(
+			unit==$unit
+		)
+	then
+		insertLogical(new UnitAlive($unit))
+end
+
+rule "Insert UpdateUnitActionsRequest After Unit Moves"
+	salience 5
+	when
+		$unit:UnitDTO(
+			$type:type
+			,$unitId:id
+		) @watch(tile)
+		UnitAlive(
+			unit==$unit
+		)
+	then
+		insertLogical(new UpdateUnitActionsRequest($unitId))
+end
+
+rule "Add Actions Defined In UnitType"
+	salience 5
+	when
+		$unit:UnitDTO(
+			$type:type
+			,$unitId:id
+		) @watch(!*)
+		UnitTypeDTO(
+			ident==$type
+			,$actions:actions
+		)@watch(!*)
+		UpdateUnitActionsRequest(
+			unitId==$unitId
+		)
+	then
+		modify($unit){
+			setActions(new HashSet($actions))
+		}
+end
+
+rule "Remove Current Action If Can't Do"
+	salience 5
+	when
+		$unit:UnitDTO(
+			$type:type
+			,$unitId:id
+			,currentAction not memberOf actions
+		) @watch(!*)
+		UpdateUnitActionsRequest(
+			unitId==$unitId
+		)
+	then
+		modify($unit){
+			setCurrentAction(null)
+		}
+end
+
+
+rule "TileImprovement Finished"
+	when
+		TileImprovementEvent($unitId:unitId) from entry-point "ActionCompletedStream"
+		UnitDTO(
+			id==$unitId
+			, $tileId:tile
+		)
+	then
+		insert(new TileImprovementChange($tileId))
+end
+rule "New Unit Set Health Points"
+	salience 100
+	when
+		$unit: UnitDTO(
+		)@watch(!*)
+	then
+		modify($unit){
+			setHealthPoints(10);
+		}
+end
+rule "Unit Properties Compute"
+	when
+		$unit: UnitDTO(
+			$tileId:tile
+			,$type:type
+		) @watch(tile)
+		UnitAlive(
+			unit==$unit
+		)
+		UnitTypeDTO(
+			ident==$type
+			,$attackStrength:attackStrength
+			,$defenseStrength:defenseStrength
+			,$movementPoints:movementPoints
+		)
+		TileDTO(
+			id==$tileId
+			,$defenseBonus: defenseBonus
+		)@watch(terrain)
+	then
+		modify($unit){
+			setAttackStrength($attackStrength)
+			,setDefenseStrength((int)Math.floor((1.00+($defenseBonus/100.00))*$defenseStrength))
+			,setMovementPoints($movementPoints)
+		}
+end
+
+rule "Insert UpdateUnitActionsRequest After Adjacent Tile Built Improvement"
+	when
+		$unit:UnitDTO(
+			$tileId:tile
+			,$unitId:id
+		)
+		UnitAlive(
+			unit==$unit
+		)
+		TileDTO(
+			id==$tileId
+			,$posX: posX
+			,$posY: posY
+		)@watch(!*)
+		accumulate(
+			TileDTO(
+					$id:id
+					,( posX==$posX && (posY==$posY-1 || posY==$posY+1) )
+					|| (posY==$posY && (posX==$posX-1 || posX==$posX+1))
+			)@watch(!*)
+			,$neighborTiles:collectSet($id)
+		)
+		TileImprovementChange(
+			tileId memberOf $neighborTiles
+		)
+	then
+		insert(new UpdateUnitActionsRequest($unitId));
+end
+
+rule "Can't Build Irrigation If Neighbour Tiles Are Not Irrigated"
+	salience 3
+	when
+		$unit:UnitDTO(
+			actions contains "buildIrrigation"
+			,$actions:actions
+			,$tileId:tile
+			,$unitId:id
+		)
+		TileDTO(
+			id==$tileId
+			,$posX:posX
+			,$posY:posY
+		)@watch(!*)
+		UpdateUnitActionsRequest(
+			unitId==$unitId
+		)
+		accumulate(
+			$tile:TileDTO(
+				(( posX==$posX && (posY==$posY-1 || posY==$posY+1) )
+				|| (posY==$posY && (posX==$posX-1 || posX==$posX+1)))
+				&& (
+						improvements contains "irrigation"
+						|| terrain in ("rivers","ocean")
+					)
+			)@watch(!*)
+			;$countIrrigated: count($tile)
+			;$countIrrigated < 1
+		)
+	then
+		$actions.remove("buildIrrigation");
+		modify($unit){
+			setActions($actions)
+		}
+		//retract($pi)
+end
+
+rule "Can't Build Railroad Without Advance Railroads"
+	salience 3
+	when
+		$unit:UnitDTO(
+			actions contains "buildRailroad"
+			,$actions:actions
+			,$ownerId:owner
+			,$unitId:id
+		)
+		PlayerDTO(
+			id==$ownerId
+			, advances not contains "railroads"
+		)@watch(!*)
+		UpdateUnitActionsRequest(
+			unitId==$unitId
+		)
+	then
+		$actions.remove("buildRailroad");
+		modify($unit){
+			setActions($actions)
+		}
+end
+
+rule "Can't Build Road On River Or Ocean"
+	salience 3
+	when
+		$unit:UnitDTO(
+			actions contains "buildRoad"
+			,$actions:actions
+			,$tileId:tile
+			,$unitId:id
+		)@watch(!*,tile)
+		TileDTO(
+			id==$tileId
+			, terrain in ("rivers","ocean")
+		)@watch(!*)
+		UpdateUnitActionsRequest(
+			unitId==$unitId
+		)
+	then
+		$actions.remove("buildRoad");
+		modify($unit){
+			setActions($actions)
+		}
+end
+
+rule "Can't Build Mine When Not On Hills"
+	salience 3
+		when
+		$unit:UnitDTO(
+			actions contains "buildMine"
+			,$actions:actions
+			,$tileId:tile
+			,$unitId:id
+		)
+		TileDTO(
+			id==$tileId
+			, terrain != "hills"
+		)@watch(!*)
+		UpdateUnitActionsRequest(
+			unitId==$unitId
+		)
+	then
+		$actions.remove("buildMine");
+		modify($unit){
+			setActions($actions)
+		}
+end
+
+rule "Can't Add To City When Not In A City"
+	salience 3
+		when
+		$unit:UnitDTO(
+			actions contains "addToCity"
+			,$actions:actions
+			,$tileId:tile
+			,$unitId:id
+		)
+		TileDTO(
+			id==$tileId
+		)
+		not CityDTO(
+			cityCentre==$tileId
+		)
+		UpdateUnitActionsRequest(
+			unitId==$unitId
+		)
+	then
+		$actions.remove("addToCity");
+		modify($unit){
+			setActions($actions)
+		}
+end
+
+rule "Can't Establish Trade Route When Not In City"
+	salience 3
+		when
+		$unit:UnitDTO(
+			actions contains "establishTradeRoute"
+			,$actions:actions
+			,$tileId:tile
+			,$unitId:id
+		)
+		TileDTO(
+			id==$tileId
+		)
+		not CityDTO(
+			cityCentre==$tileId
+		)
+		UpdateUnitActionsRequest(
+			unitId==$unitId
+		)
+	then
+		$actions.remove("establishTradeRoute");
+		modify($unit){
+			setActions($actions)
+		}
+end
+
+rule "Can't Establish Trade Route When Closer Than 10"
+	salience 3
+		when
+		$unit:UnitDTO(
+			actions contains "establishTradeRoute"
+			,$actions:actions
+			,$tileId:tile
+			,$unitId:id
+		) @watch(!*)
+		CityDTO(
+			homeUnits contains $unitId
+			, $cityCentre:cityCentre
+		)
+		$homeCityTile:TileDTO(
+			id==$cityCentre
+		)
+		$currentTile:TileDTO(
+			id==$tileId
+			,distance($homeCityTile,$currentTile)<10
+		)
+		UpdateUnitActionsRequest(
+			unitId==$unitId
+		)
+		
+	then
+		$actions.remove("establishTradeRoute");
+		modify($unit){
+			setActions($actions)
+		}
+end
+rule "Can't Set Home City When Not In A City"
+		when
+		UpdateUnitActionsRequest(
+			$unitId:unitId
+		)
+		$unit:UnitDTO(
+			id==$unitId
+			,actions contains "setHomeCity"
+			,$actions:actions
+			,$tileId:tile
+		)
+		TileDTO(
+			id==$tileId
+		)@watch(!*)
+		not CityDTO(
+			cityCentre==$tileId
+		)@watch(!*)
+		
+	then
+		$actions.remove("setHomeCity");
+		modify($unit){
+			setActions($actions)
+		}
+end
+rule "Can't Set Home City When Not In Own City"
+	salience 3
+	when
+		$unit:UnitDTO(
+			actions contains "setHomeCity"
+			,$actions:actions
+			,$tileId:tile
+			,$owner:owner
+			,$unitId:id
+		)
+		TileDTO(
+			id==$tileId
+		)
+		CityDTO(
+			cityCentre==$tileId
+			,owner!=$owner
+		)
+		UpdateUnitActionsRequest(
+			unitId==$unitId
+		)
+	then
+		$actions.remove("setHomeCity");
+		modify($unit){
+			setActions($actions)
+		}
+end
+rule "Count Unit's Distance Home"
+	when
+		$unit:UnitDTO(
+			$tileId:tile
+			,$unitId:id
+		)@watch(tile,currentAction)
+		UnitAlive(
+			unit==$unit
+		)
+		CityDTO(
+			homeUnits contains $unitId
+			, $cityCentre:cityCentre
+		)@watch(!*)
+		$currentTile:TileDTO(
+			id==$tileId
+		)@watch(!*)
+		$homeCityTile:TileDTO(
+			id==$cityCentre
+		)@watch(!*)
+	then
+		modify($unit){
+			setDistanceHome((int)Math.round(distance($currentTile,$homeCityTile)))
+		}
+end
+function double distance(TileDTO fst, TileDTO snd) {
+	return Math.sqrt(Math.pow(fst.getPosX()-snd.getPosX(),2)+Math.pow(fst.getPosY()-snd.getPosY(),2));
+}

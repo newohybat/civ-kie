@@ -1,0 +1,64 @@
+/** ALL TESTED **/
+//created on: Mar 13, 2014
+package cz.muni.fi.civ.newohybat.drools.rules
+
+//list any import classes here.
+import java.util.HashMap;
+import java.util.Map;
+ 
+
+//declare any global variables here 
+rule "Unit Is Busy When Building City"
+	when
+		$unit:UnitDTO()
+		$pi:WorkflowProcessInstance(
+			getProcessId()=="cz.muni.fi.civ.newohybat.bpmn.buildCity"
+			,getVariable("unit")==$unit
+		)
+	then
+		insertLogical(new UnitBusy($unit, $pi))
+end
+rule "Unit Start Build City"
+	activation-group "buildCity"
+	when
+		$unit:UnitDTO(
+			currentAction=="buildCity"
+			,currentAction memberOf actions
+			,$unitId:id
+		) @watch(currentAction)
+		UnitIdle(
+			unit==$unit
+		)
+		not WorkflowProcessInstance(
+			getProcessId()=="cz.muni.fi.civ.newohybat.bpmn.buildCity"
+			,((UnitDTO)getVariable("unit")).getId()==$unitId
+		)
+	then
+		Map params = new HashMap();
+		params.put("unit",$unit);
+		params.put("city",null);
+		ProcessInstance pi = kcontext.getKnowledgeRuntime().createProcessInstance("cz.muni.fi.civ.newohybat.bpmn.buildCity",params);
+		kcontext.getKnowledgeRuntime().startProcessInstance(pi.getId());
+		kcontext.getKnowledgeRuntime().insert(pi);
+end
+rule "Cancel City Build"
+	activation-group "buildCity"
+	when
+		$unit:UnitDTO(
+			$currentAction:currentAction
+			,$unitId:id
+		) @watch(!*)
+		$pc:CityEvent(
+			unitId==$unitId
+		) from entry-point ActionCanceledStream
+		$pi:WorkflowProcessInstance(
+			getProcessId()=="cz.muni.fi.civ.newohybat.bpmn.buildCity"
+			,((UnitDTO)getVariable("unit")).getId()==$unitId
+			,$processId:id
+		)
+	then
+		modify($unit){
+			setCurrentAction(null)
+		}
+		kcontext.getKnowledgeRuntime().signalEvent("cancel",null,$processId);
+end

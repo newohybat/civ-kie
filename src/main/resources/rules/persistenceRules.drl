@@ -1,0 +1,61 @@
+/** PARTIALLY TESTED **/
+/* The mechanism is tested, but to with all rules. */
+
+//created on: Apr 19, 2014
+package cz.muni.fi.civ.newohybat.drools.rules
+dialect "mvel"
+//list any import classes here.
+import java.util.Set;
+
+
+//declare any global variables here
+global Set updated;
+
+declare DirtyObject
+	target:Object
+end
+
+
+rule "Persist City"
+	salience -1000
+	when
+		$city:CityDTO() @watch(*)
+	then
+		insert(new DirtyObject($city))
+end
+
+rule "Persist Player"
+	salience -1000
+	when
+		$player:PlayerDTO() @watch(*)
+	then
+		insert(new DirtyObject($player))
+end
+
+rule "Persist Tile"
+	salience -1000
+	when
+		$tile:TileDTO() @watch(*)
+	then
+		insert(new DirtyObject($tile))
+end
+
+rule "Persist Unit"
+	salience -1000
+	when
+		$unit:UnitDTO() @watch(*)
+	then
+		insert(new DirtyObject($unit))
+end
+rule "Persist UnitType"
+	salience -1000
+	when
+		$unitType:UnitTypeDTO() @watch(*)
+	then
+		insert(new DirtyObject($unitType))
+end
+
+query "getDirtyObjects"
+	$dirtyObject:DirtyObject($subject:target)
+end
+

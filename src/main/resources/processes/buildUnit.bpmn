@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?> 
+<definitions id="Definition"
+             targetNamespace="http://www.jboss.org/drools"
+             typeLanguage="http://www.java.com/javaTypes"
+             expressionLanguage="http://www.mvel.org/2.0"
+             xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd"
+             xmlns:g="http://www.jboss.org/drools/flow/gpd"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+             xmlns:tns="http://www.jboss.org/drools">
+
+  <itemDefinition id="_unitTypeItem" />
+  <itemDefinition id="_eventItem" />
+  <itemDefinition id="_cityItem" />
+  <itemDefinition id="_resourcesSpentItem" structureRef="Integer" />
+  <itemDefinition id="_unitItem" />
+
+  <itemDefinition id="_15-unitTypeItem" />
+  <itemDefinition id="_15-eventItem" />
+  <itemDefinition id="_15-cityItem" />
+  <itemDefinition id="_15-resourcesSpentItem" structureRef="Integer" />
+  <itemDefinition id="_15-unitItem" />
+
+  <process processType="Private" isExecutable="true" id="cz.muni.fi.civ.newohybat.bpmn.buildUnit" name="Build Unit" tns:packageName="cz.muni.fi.civ.newohybat.bpmn" >
+
+    <extensionElements>
+     <tns:import name="cz.muni.fi.civ.newohybat.persistence.facade.dto.TileImprovementDTO" />
+    </extensionElements>
+    <!-- process variables -->
+    <property id="unitType" itemSubjectRef="_unitTypeItem"/>
+    <property id="event" itemSubjectRef="_eventItem"/>
+    <property id="city" itemSubjectRef="_cityItem"/>
+    <property id="resourcesSpent" itemSubjectRef="_resourcesSpentItem"/>
+    <property id="unit" itemSubjectRef="_unitItem"/>
+
+    <!-- nodes -->
+    <startEvent id="_1" name="StartProcess" />
+    <intermediateCatchEvent id="_5" name="Signal" >
+      <dataOutput id="_5_Output" name="event" />
+      <dataOutputAssociation>
+      <sourceRef>_5_Output</sourceRef>
+      <targetRef>event</targetRef>
+      </dataOutputAssociation>
+      <outputSet>
+        <dataOutputRefs>_5_Output</dataOutputRefs>
+      </outputSet>
+      <signalEventDefinition signalRef="turn-new"/>
+    </intermediateCatchEvent>
+    <scriptTask id="_6" name="Process Turn" >
+      <script>$spentNow = (int)Math.min(city.resourcesSurplus,(unitType.cost-resourcesSpent));
+kcontext.setVariable("resourcesSpent",resourcesSpent + $spentNow);</script>
+    </scriptTask>
+    <exclusiveGateway id="_7" name="Gateway" gatewayDirection="Diverging" />
+    <endEvent id="_9" name="End" />
+    <endEvent id="_10" name="End" >
+        <terminateEventDefinition />
+    </endEvent>
+    <endEvent id="_13" name="End" >
+        <terminateEventDefinition />
+    </endEvent>
+    <intermediateCatchEvent id="_14" name="Signal" >
+      <dataOutput id="_14_Output" name="event" />
+      <dataOutputAssociation>
+      <sourceRef>_14_Output</sourceRef>
+      <targetRef>event</targetRef>
+      </dataOutputAssociation>
+      <outputSet>
+        <dataOutputRefs>_14_Output</dataOutputRefs>
+      </outputSet>
+      <signalEventDefinition signalRef="cancel"/>
+    </intermediateCatchEvent>
+    <task id="_15" name="Create Unit" tns:taskName="Unit" >
+      <ioSpecification>
+        <dataInput id="_15_unitTypeInput" name="unitType" />
+        <dataInput id="_15_cityInput" name="city" />
+        <dataOutput id="_15_unitOutput" name="unit" />
+        <inputSet>
+          <dataInputRefs>_15_unitTypeInput</dataInputRefs>
+          <dataInputRefs>_15_cityInput</dataInputRefs>
+        </inputSet>
+        <outputSet>
+          <dataOutputRefs>_15_unitOutput</dataOutputRefs>
+        </outputSet>
+      </ioSpecification>
+      <dataInputAssociation>
+        <sourceRef>unitType</sourceRef>
+        <targetRef>_15_unitTypeInput</targetRef>
+      </dataInputAssociation>
+      <dataInputAssociation>
+        <sourceRef>city</sourceRef>
+        <targetRef>_15_cityInput</targetRef>
+      </dataInputAssociation>
+      <dataOutputAssociation>
+        <sourceRef>_15_unitOutput</sourceRef>
+        <targetRef>unit</targetRef>
+      </dataOutputAssociation>
+    </task>
+
+    <!-- connections -->
+    <sequenceFlow id="_5-_6" sourceRef="_5" targetRef="_6" />
+    <sequenceFlow id="_6-_7" sourceRef="_6" targetRef="_7" />
+    <sequenceFlow id="_7-_9" sourceRef="_7" targetRef="_9" name="Not Yet" tns:priority="1" >
+      <conditionExpression xsi:type="tFormalExpression" >return true;</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="_15-_10" sourceRef="_15" targetRef="_10" />
+    <sequenceFlow id="_14-_13" sourceRef="_14" targetRef="_13" />
+    <sequenceFlow id="_1-_14" sourceRef="_1" targetRef="_14" />
+    <sequenceFlow id="_7-_15" sourceRef="_7" targetRef="_15" name="Can Complete" >
+      <conditionExpression xsi:type="tFormalExpression" >return resourcesSpent&gt;=unitType.getCost()</conditionExpression>
+    </sequenceFlow>
+
+  </process>
+
+  <bpmndi:BPMNDiagram>
+    <bpmndi:BPMNPlane bpmnElement="cz.muni.fi.civ.newohybat.bpmn.buildUnit" >
+      <bpmndi:BPMNShape bpmnElement="_1" >
+        <dc:Bounds x="19" y="122" width="48" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="_5" >
+        <dc:Bounds x="74" y="232" width="48" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="_6" >
+        <dc:Bounds x="158" y="233" width="105" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="_7" >
+        <dc:Bounds x="306" y="232" width="48" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="_9" >
+        <dc:Bounds x="453" y="309" width="48" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="_10" >
+        <dc:Bounds x="605" y="233" width="48" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="_13" >
+        <dc:Bounds x="298" y="124" width="48" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="_14" >
+        <dc:Bounds x="157" y="123" width="48" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="_15" >
+        <dc:Bounds x="460" y="232" width="109" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="_5-_6" >
+        <di:waypoint x="98" y="256" />
+        <di:waypoint x="210" y="257" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="_6-_7" >
+        <di:waypoint x="210" y="257" />
+        <di:waypoint x="330" y="256" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="_7-_9" >
+        <di:waypoint x="330" y="256" />
+        <di:waypoint x="477" y="333" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="_15-_10" >
+        <di:waypoint x="514" y="256" />
+        <di:waypoint x="629" y="257" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="_14-_13" >
+        <di:waypoint x="181" y="147" />
+        <di:waypoint x="322" y="148" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="_1-_14" >
+        <di:waypoint x="43" y="146" />
+        <di:waypoint x="181" y="147" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="_7-_15" >
+        <di:waypoint x="330" y="256" />
+        <di:waypoint x="514" y="256" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</definitions>

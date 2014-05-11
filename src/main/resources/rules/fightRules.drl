@@ -1,0 +1,163 @@
+/** ALL TESTED **/
+
+//created on: Mar 25, 2014
+package cz.muni.fi.civ.newohybat.drools.rules
+
+
+
+//declare any global variables here
+global String timeout;
+
+query "Get Dead Units"
+	accumulate(
+		UnitDead(
+			$unit:unit
+		)
+		,$deadUnits:collectList($unit)
+	)
+end
+
+query "Get Unit Dead" (UnitDTO givenUnit)
+	$dead:UnitDead(
+		unit.id==givenUnit.id
+	) 
+end
+
+query "Get Unit If Dead"(Long $id)
+	UnitDead(
+		unit.id == $id
+		, $unit:unit
+	)
+end
+
+
+
+rule "Begin Fight Between Enemy Units On Same Tile"
+	dialect "mvel"
+	no-loop
+    when
+        $u1: UnitDTO(
+        	$unitId:id
+        	,$tile1:tile
+        	,$ownerId:owner
+        ) @watch(tile)
+        UnitAlive(
+        	unit==$u1
+        )
+        $u2: UnitDTO( 
+        	id!=$unitId
+        	,tile==$tile1
+        	,owner!=$ownerId
+        ) @watch(!*)
+        UnitAlive(
+        	unit==$u2
+        )
+    then
+        insertLogical(new FightProposal($u1,$u2))
+end
+
+rule "Remove Duplicit Fight"
+	dialect "mvel"
+	no-loop
+	salience 50
+	when
+		$f:FightProposal(
+			$attacker:attacker
+			,$defender:defender
+		)
+		FightProposal(
+			attacker==$defender
+			,defender==$attacker
+		)
+	then
+		retract($f)
+end
+rule "Start fight"
+	dialect "mvel"
+	when
+		$f:FightProposal(
+			$attacker:attacker
+			,$defender:defender
+		)
+	then
+		insertLogical(new Fight($attacker,$defender))
+end
+
+
+rule "Process Fight"
+	dialect "mvel"
+	when
+		Fight(
+        	$attacker:attacker
+        	,$defender:defender
+        	//,$attacker.attackStrength>$defender.defenseStrength
+        )
+	then
+		modify($defender){
+			setHealthPoints(0)
+		}
+		modify($attacker){
+			setHealthPoints((int)Math.floor((double)$attacker.healthPoints*0.5))
+		}
+end
+
+rule "Unit Died"
+	dialect "mvel"
+	no-loop
+	when
+		$u: UnitDTO(
+	        healthPoints<1
+	    )
+	    $f:Fight(
+	    	$u memberOf [attacker,defender]
+	    )
+	then
+		insertLogical(new UnitDead($u,$f))
+end
+
+rule "Unit Died Test Rule"
+	dialect "mvel"
+	no-loop
+	when
+		$u: UnitDTO(
+	        healthPoints<1
+	    )
+	    not Fight(
+	    	$u memberOf [attacker,defender]
+	    )
+	then
+		insertLogical(new UnitDead($u,null))
+end
+
+rule "Remove Dead Unit From City Home Units"
+	dialect "mvel"
+	salience 50
+	when
+		UnitDead(
+			$unit:unit
+		)
+		$city:CityDTO(
+			homeUnits contains $unit.id
+			, $homeUnits:homeUnits
+			,$cityId:id
+		)
+	then
+		$newHomeUnits = new HashSet($homeUnits)
+		$newHomeUnits.remove($unit.id)
+		modify($city){
+			setHomeUnits($newHomeUnits)
+		}
+		insertLogical(new UpdateUnitsSupport($cityId))
+end
+/*
+rule "Dead Unit Removal Timeout"
+	dialect "mvel"
+	timer(expr: timeout)
+	when
+		UnitDead(
+        	$unit:unit
+        )
+	then
+		System.out.println("dead");
+		retract($unit)
+end*/

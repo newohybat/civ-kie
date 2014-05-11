@@ -1,0 +1,690 @@
+/** PARTIALLY TESTED **/
+
+//created on: Feb 12, 2014
+package cz.muni.fi.civ.newohybat.drools.rules
+
+//list any import classes here.
+import java.util.Random;
+
+//declare any global variables here
+rule "Tile Arctic"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience 4
+	when
+		$tile:TileDTO(terrain=="arctic")@watch(!*,terrain)
+	then
+		modify($tile){
+			setMovementCost(2)
+		}
+end
+rule "Tile Arctic With Seals"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	when
+		$tile:TileDTO(
+			terrain=="arctic"
+			,special=="seals"
+			,$foodProduction:foodProduction
+		)@watch(!*,terrain)
+	then
+		modify($tile){
+			setFoodProduction($foodProduction+2)
+		}
+end
+rule "Tile Desert"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience 4
+	when
+		$tile:TileDTO(
+			terrain=="desert"
+		)@watch(!*,terrain)
+	then
+		modify($tile){
+			setMovementCost(1)
+			,setResourcesProduction(1)
+		}
+end
+rule "Tile Desert With Irrigation"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	when
+		$tile: TileDTO(
+			terrain=="desert"
+			,improvements contains "irrigation"
+			,$foodProduction: foodProduction
+		)@watch(!*,terrain)
+	then
+		modify($tile){
+			setFoodProduction($foodProduction+1)
+		}
+end
+rule "Tile Desert With Mine"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	when
+		$tile: TileDTO(
+			terrain=="desert"
+			,improvements contains "mine"
+			,$resourcesProduction:resourcesProduction
+		) @watch(!*,terrain)
+	then
+		modify($tile){
+			setResourcesProduction($resourcesProduction+1)
+		}
+end
+rule "Tile Desert With Road"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	when
+		$tile: TileDTO(
+			terrain=="desert"
+			,improvements contains "road"
+			,$tradeProduction:tradeProduction
+		)@watch(!*,terrain)
+	then
+		modify($tile){
+			setTradeProduction($tradeProduction+1)
+		}
+end
+rule "Tile Desert With Oasis"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	when
+		$tile: TileDTO(
+			terrain=="desert"
+			,special=="oasis"
+			,$foodProduction:foodProduction
+		)@watch(!*,terrain)
+	then
+		modify($tile){
+			setFoodProduction($foodProduction+3)
+		}
+end
+rule "Tile Forest"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience 4
+	when
+		$tile: TileDTO(terrain=="forest")@watch(!*,terrain)
+	then
+		modify($tile){
+			setFoodProduction(1)
+			,setResourcesProduction(2)
+			,setDefenseBonus(50)
+			,setMovementCost(2)
+		}
+end
+rule "Tile Forest With Irrigation"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience 5
+	when
+		$tile: TileDTO(
+			terrain=="forest"
+			, improvements contains "irrigation"
+		)@watch(!*,terrain)
+	then
+		modify($tile){
+			getImprovements().remove("irrigation")
+			,setTerrain("plains")
+		}
+end
+// Important after change of terrain from forest to plains, when special game is present: convert it to horses
+rule "Tile Forest With Irrigation And Game Consequence Plains And Horses"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience 5
+	when
+		$tile: TileDTO(
+			terrain=="plains"
+			, special=="game"
+		)@watch(!*,terrain)
+	then
+		modify($tile){
+			setSpecial("horses")
+		}
+end
+
+rule "Tile Forest With Game"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	when
+		$tile: TileDTO(
+			terrain=="forest"
+			,special=="game"
+			,$foodProduction:foodProduction
+		)@watch(!*,terrain)
+	then
+		modify($tile){
+			setFoodProduction($foodProduction+2)
+		}
+end
+rule "Tile Grassland"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience 4
+	when
+		$tile:TileDTO(
+			terrain=="grassland"
+		)@watch(!*,terrain)
+	then
+		modify($tile){
+			setMovementCost(1)
+			,setDefenseBonus(50)
+			,setFoodProduction(2)
+			,setResourcesProduction((new Random().nextBoolean())?1:0)
+		}
+end
+rule "Tile Grassland With Irrigation"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	when
+		$tile:TileDTO(
+			terrain=="grassland"
+			,improvements contains "irrigation"
+			,$foodProduction:foodProduction
+		)@watch(!*,terrain)
+	then
+		modify($tile){
+			setFoodProduction($foodProduction+1)
+		}
+end
+
+rule "Tile Grassland With Mine"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience 5
+	when
+		$tile:TileDTO(
+			terrain=="grassland"
+			,improvements contains "mine"
+			,$improvements:improvements
+		)@watch(!*,terrain)
+	then
+		$improvements.remove("mine")
+		modify($tile){
+			setImprovements($improvements)
+			,setTerrain("forest")
+		}
+end
+rule "Tile Grassland With Road"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	when
+		$tile:TileDTO(
+			terrain=="grassland"
+			,improvements contains "road"
+			,$tradeProduction:tradeProduction
+		)@watch(!*,terrain)
+	then
+		modify($tile){
+			setTradeProduction($tradeProduction+1)
+		}
+end
+rule "Tile Hills"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience 4
+	when
+		$tile:TileDTO(terrain=="hills")@watch(!*,terrain)
+	then
+		modify($tile){
+			setFoodProduction(1)
+			,setMovementCost(2)
+			,setDefenseBonus(100)
+		}
+end
+rule "Tile Hills With Irrigation"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	when
+		$tile:TileDTO(
+			terrain=="hills"
+			,improvements contains "irrigation"
+			,$foodProduction:foodProduction
+		)@watch(!*,terrain)
+	then
+		modify($tile){
+			setFoodProduction($foodProduction+1)
+		}
+end
+rule "Tile Hills With Mine"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	when
+		$tile:TileDTO(
+			terrain=="hills"
+			,improvements contains "mine"
+			,$resourcesProduction:resourcesProduction
+		)@watch(!*,terrain)
+	then
+		modify($tile){
+			setResourcesProduction($resourcesProduction+3)
+		}
+end
+rule "Tile Hills With Coal"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	when
+		$tile:TileDTO(
+			terrain=="hills"
+			,special=="coal"
+			,$resourcesProduction:resourcesProduction
+		)@watch(!*,terrain)
+	then
+		modify($tile){
+			setResourcesProduction($resourcesProduction+2)
+		}
+end
+rule "Tile Jungle"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience 4
+	when
+		$tile:TileDTO(terrain=="jungle")@watch(!*,terrain)
+	then
+		modify($tile){
+			setFoodProduction(1)
+			,setMovementCost(2)
+			,setDefenseBonus(50)
+		}
+end
+rule "Tile Jungle With Irrigation"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience 5
+	when
+		$tile:TileDTO(
+			terrain=="jungle"
+			,improvements contains "irrigation"
+			,$improvements:improvements
+		)@watch(!*,terrain)
+	then
+		$improvements.remove("irrigation")
+		modify($tile){
+			setImprovements($improvements)
+			,setTerrain("grassland")
+		}
+end
+// Important after change of terrain from jungle to grassland, when special gems is present: remove special completely
+rule "Tile Jungle With Irrigation And Gems Consequence Grassland And No Special"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience 5
+	when
+		$tile: TileDTO(terrain=="grassland", special=="gems")@watch(!*,terrain)
+	then
+		modify($tile){
+			setSpecial(null)
+		}
+end
+rule "Tile Jungle With Mine"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience 5
+	when
+		$tile:TileDTO(
+			terrain=="jungle"
+			,improvements contains "mine"
+			,$improvements:improvements
+		)@watch(!*,terrain)
+	then
+		$improvements.remove("mine")
+		modify($tile){
+			setImprovements($improvements)
+			,setTerrain("forest")
+		}
+end
+// Important after change of terrain from jungle to forest, when special gems is present: convert Gems to Game
+rule "Tile Jungle With Mine And Gems Consequence Forest And Game"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience 5
+	when
+		$tile: TileDTO(terrain=="forest", special=="gems")@watch(!*,terrain)
+	then
+		modify($tile){
+			setSpecial("game")
+		}
+end
+rule "Tile Jungle With Gems"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	when
+		$tile:TileDTO(
+			terrain=="jungle"
+			,special=="gems"
+			,$tradeProduction:tradeProduction
+		)@watch(!*,terrain)
+	then
+		modify($tile){
+			setTradeProduction($tradeProduction+ 4)
+		}
+end
+rule "Tile Mountains"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience 4
+	when
+		$tile:TileDTO(terrain=="mountains")@watch(!*,terrain)
+	then
+		modify($tile){
+			setMovementCost(3)
+			,setDefenseBonus(200)
+			,setResourcesProduction(1)
+		}
+end
+rule "Tile Mountains With Mine"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	when
+		$tile:TileDTO(
+			terrain=="mountains"
+			,improvements contains "mine"
+			,$resourcesProduction:resourcesProduction
+		)@watch(!*,terrain)
+	then
+		modify($tile){
+			setResourcesProduction($resourcesProduction+1)
+		}
+end
+rule "Tile Mountains With Gold"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	when
+		$tile:TileDTO(
+			terrain=="mountains"
+			,special=="gold"
+			,$tradeProduction:tradeProduction
+		)@watch(!*,terrain)
+	then
+		modify($tile){
+			setTradeProduction($tradeProduction+6)
+		}
+end
+rule "Tile Ocean"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience 4
+	when
+		$tile:TileDTO(terrain=="ocean")@watch(!*,terrain)
+	then
+		modify($tile){
+			setMovementCost(1)
+			,setFoodProduction(1)
+			,setTradeProduction(2)
+		}
+end
+rule "Tile Ocean With Fish"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	when
+		$tile:TileDTO(
+			terrain=="ocean"
+			,special=="fish"
+			,$foodProduction:foodProduction
+		)@watch(!*,terrain)
+	then
+		modify($tile){
+			setFoodProduction($foodProduction+2)
+		}
+end
+rule "Tile Plains"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience 4
+	when
+		$tile:TileDTO(terrain=="plains")@watch(!*,terrain)
+	then
+		modify($tile){
+			setMovementCost(1)
+			,setFoodProduction(1)
+			,setResourcesProduction(1)
+		}
+end
+rule "Tile Plains With Irrigation"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	when
+		$tile:TileDTO(
+			terrain=="plains"
+			,improvements contains "irrigation"
+			,$foodProduction:foodProduction
+		)@watch(!*,terrain)
+	then
+		modify($tile){
+			setFoodProduction($foodProduction+1)
+		}
+end
+
+rule "Tile Plains With Mine"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience 5
+	when
+		$tile:TileDTO(
+			terrain=="plains"
+			,improvements contains "mine"
+			,$improvements:improvements
+		)@watch(!*,terrain)
+	then
+		$improvements.remove("mine")
+		modify($tile){
+			setImprovements($improvements)
+			,setTerrain("forest")
+		}
+end
+// Important after change of terrain from plains to forest, when special horses is present: convert Horses to Game
+rule "Tile Plains With Mine And Horses Consequence Forest And Game"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience 5
+	when
+		$tile: TileDTO(terrain=="forest", special=="horses")@watch(!*,terrain)
+	then
+		modify($tile){
+			setSpecial("game")
+		}
+end
+rule "Tile Plains With Road"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	when
+		$tile:TileDTO(
+			terrain=="plains"
+			,improvements contains "road"
+			,$tradeProduction:tradeProduction
+		)@watch(!*,terrain)
+	then
+		modify($tile){
+			setTradeProduction($tradeProduction+1)
+		}
+end
+rule "Tile Plains With Horses"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	when
+		$tile:TileDTO(
+			terrain=="plains"
+			,special=="horses"
+			,$resourcesProduction:resourcesProduction	
+		)@watch(!*,special,terrain)
+	then
+		modify($tile){
+			setResourcesProduction($resourcesProduction+2)
+		}
+end
+rule "Tile Rivers"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience 4
+	when
+		$tile:TileDTO(terrain=="rivers") @watch(!*,terrain)
+	then
+		modify($tile){
+			setMovementCost(1)
+			,setDefenseBonus(50)
+			,setFoodProduction(2)
+			,setResourcesProduction((new Random().nextBoolean())?1:0)
+		}
+end
+rule "Tile Rivers With Irrigation"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	when 
+		$tile:TileDTO(
+			terrain=="rivers"
+			,improvements contains "irrigation"
+			,$foodProduction:foodProduction
+		) @watch(!*,terrain)
+	then
+		modify($tile){
+			setFoodProduction($foodProduction+1)
+		}
+end
+rule "Tile Swamp"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience 4
+	when
+		$tile:TileDTO(terrain=="swamp")@watch(!*,terrain)
+	then
+		modify($tile){
+			setMovementCost(2)
+			,setDefenseBonus(50)
+			,setFoodProduction(1)
+		}
+end
+rule "Tile Swamp With Irrigation"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience 5
+	when
+		$tile:TileDTO(
+			terrain=="swamp"
+			,improvements contains "irrigation"
+			,$improvements: improvements
+		)@watch(!*,terrain)
+	then
+		$improvements.remove("irrigation")
+		modify($tile){
+			setImprovements($improvements)
+			,setTerrain("grassland")
+		}
+end
+// Important after change of terrain from swamp to grassland, when special oil is present: remove Horses special
+rule "Tile Swamp With Irrigation And Oil Consequence Grassland And None"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience 5
+	when
+		$tile: TileDTO(terrain=="grassland", special=="oil")@watch(!*,terrain)
+	then
+		modify($tile){
+			setSpecial(null)
+		}
+end
+rule "Tile Swamp With Mine"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience 5
+	when
+		$tile:TileDTO(
+			terrain=="swamp"
+			,improvements contains "mine"
+			,$improvements: improvements
+		)@watch(!*,terrain)
+	then
+		$improvements.remove("mine")
+		modify($tile){
+			setImprovements($improvements)
+			,setTerrain("forest")
+		}
+end
+// Important after change of terrain from swamp to forest, when special oil is present: convert Oil to Game
+rule "Tile Swamp With Mine And Oil Consequence Forest And Game"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience 5
+	when
+		$tile: TileDTO(terrain=="forest", special=="oil")@watch(!*,terrain)
+	then
+		modify($tile){
+			setSpecial("game")
+		}
+end
+rule "Tile Swamp With Oil"
+	dialect "mvel"
+	//ruleflow-group "processTiles"
+	when
+		$tile:TileDTO(
+			terrain=="swamp"
+			,special=="oil"
+			,$resourcesProduction:resourcesProduction	
+		)@watch(!*,terrain)
+	then
+		modify($tile){
+			setResourcesProduction($resourcesProduction+4)
+		}
+end
+rule "Tile Tundra"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience 4
+	when
+		$tile:TileDTO(terrain=="tundra")@watch(!*,terrain)
+	then
+		modify($tile){
+			setMovementCost(1)
+			,setFoodProduction(1)
+		}
+end
+rule "Tile Tundra With Game"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	when
+		$tile:TileDTO(
+			terrain=="tundra"
+			,special=="game"
+			,$foodProduction:foodProduction
+		)@watch(!*,terrain)
+	then
+		modify($tile){
+			setFoodProduction($foodProduction+2)
+		}
+end
+rule "Tile With Road"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience -1
+	when
+		$tile:TileDTO(
+			improvements contains "road"
+			,$movementCost:movementCost
+		)@watch(!*,terrain)
+	then
+		modify($tile){
+			setMovementCost((int)Math.ceil($movementCost*(1/3)))
+		}
+end
+rule "Tile With Railroad"
+	dialect "mvel"
+	ruleflow-group "processTiles"
+	salience -2 //called after all other rules fired
+	when
+		$tile:TileDTO(
+			improvements contains "railroad"
+			,$foodProduction:foodProduction
+			,$resourcesProduction:resourcesProduction
+			,$tradeProduction:tradeProduction
+		)@watch(!*,terrain)
+	then
+		modify($tile){
+			setFoodProduction((Integer)Math.floor($foodProduction*1.5))
+			,setTradeProduction((Integer)Math.floor($tradeProduction*1.5))
+			,setResourcesProduction((Integer)Math.floor($resourcesProduction*1.5))
+			,setMovementCost(0)
+		}
+end

@@ -1,0 +1,339 @@
+/** PARTIALLY TESTED **/
+/*
+*	Improvement effects are not fully covered in tests.
+*/
+
+//created on: Feb 14, 2014
+package cz.muni.fi.civ.newohybat.drools.rules
+
+//list any import classes here.
+
+import java.util.Map;
+import java.util.HashMap;
+import org.kie.api.runtime.process.ProcessInstance;
+import org.kie.api.runtime.process.WorkflowProcessInstance;
+
+//declare any global variables here
+
+/*
+specified in rule "Food Stock Overflows City Reached Population Limit Without Aqueduct"
+rule "Aqueduct"
+
+end
+*/
+rule "Bank"
+	dialect "mvel"
+	ruleflow-group "manageSurpluses"
+	salience -5 // to assure fired after luxuries and taxes are set
+	lock-on-active true
+	when
+		$city:CityDTO(
+			improvements contains "bank"
+			,$luxuriesAmount : luxuriesAmount
+			,$taxesAmount: taxesAmount
+			,$cityId:id
+		)@watch(luxuriesAmount,taxesAmount)
+	then
+		modify($city){
+			setLuxuriesAmount((Integer)Math.floor($luxuriesAmount*1.5))
+			,setTaxesAmount((Integer)Math.floor($taxesAmount*1.5))
+		}
+end
+rule "Barracks"
+	dialect "mvel"
+	when
+		CityDTO(improvements contains "barracks")
+	then
+		
+end
+rule "Cathedral"
+	dialect "mvel"
+	ruleflow-group "affectPopulation"
+	lock-on-active true
+	when
+		$city: CityDTO(
+			improvements contains "cathedral"
+			, $peopleUnhappy:peopleUnhappy
+			, $peopleContent: peopleContent
+			, $cityId:id
+		) @watch(peopleUnhappy, peopleContent)
+	then
+		// max 4 people are made content
+		$peopleChanged = Math.min($peopleUnhappy,4)
+		modify($city){
+			setPeopleUnhappy($peopleUnhappy-$peopleChanged)
+			,setPeopleContent($peopleContent+$peopleChanged)
+		}
+end
+// City Walls none
+
+rule "Colosseum"
+	dialect "mvel"
+	ruleflow-group "affectPopulation"
+	lock-on-active true
+	when
+		$city: CityDTO(
+			improvements contains "colosseum"
+			, $peopleUnhappy:peopleUnhappy
+			, $peopleContent: peopleContent
+		) @watch(peopleUnhappy, peopleContent)
+	then
+		// max 3 people made content
+		$peopleChanged = Math.min($peopleUnhappy,3)
+		modify($city){
+			setPeopleUnhappy($peopleUnhappy-$peopleChanged)
+			,setPeopleContent($peopleContent+$peopleChanged)
+		}
+end
+
+rule "Courthouse"
+	dialect "mvel"
+	ruleflow-group "manageConsumptions"
+	salience -5 // to asure fired after corruption is set
+	lock-on-active true
+	when
+		$city: CityDTO(
+			improvements contains "courthouse"
+			,$corruption:corruption
+		) @watch(corruption)
+	then
+		modify($city){
+			setCorruption((Integer)Math.ceil($corruption*0.5))
+		}
+end
+
+rule "Factory"
+	dialect "mvel"
+	ruleflow-group "manageProductions"
+	activation-group "factoryVsmanufacturingPlant"
+	salience -25 // all other of ruleflow-group should be higher
+	lock-on-active true
+	when
+		$city: CityDTO(
+			improvements contains "factory"
+			,$resourcesProduction:resourcesProduction
+		) @watch(resourcesProduction)
+	then
+		modify($city){
+			setResourcesProduction((int)Math.floor((double)$resourcesProduction*1.5))
+		}
+end
+rule "Factory And Some Power Plant"
+	dialect "mvel"
+	ruleflow-group "manageProductions"
+	activation-group "factoryVsmanufacturingPlant"
+	salience -20 // higher than of rule "Factory", but lesser than of rules concerning power plants
+	lock-on-active true
+	when
+		$city: CityDTO(
+			improvements contains "factory"
+			,(
+				improvements contains "hydroPlant" 
+				|| contains "nuclearPlant" 
+				|| contains "powerPlant"
+			)
+			,$resourcesProduction:resourcesProduction
+		) @watch(resourcesProduction)
+	then
+		modify($city){
+			setResourcesProduction((Integer)Math.floor($resourcesProduction*2))
+		}
+end
+// Granary none
+
+rule "Hydro Plant"
+	dialect "mvel"
+	ruleflow-group "manageProductions"
+	salience -5 // before rules "Factory", "Manufacturing Plant" and its variations
+	lock-on-active true
+	when
+		$city: CityDTO(
+			improvements contains "hydroPlant"
+			,$resourcesProduction: resourcesProduction
+		)@watch(resourcesProduction)
+	then
+		modify($city){
+			setResourcesProduction((Integer) Math.floor((double)$resourcesProduction*1.5))	
+		}
+end
+
+
+rule "Library"
+	dialect "mvel"
+	ruleflow-group "manageSurpluses"
+	activation-group "libraryUniversity"
+	salience -2
+	lock-on-active true
+	when
+		$city: CityDTO(
+			improvements contains "library"
+			,$research: researchAmount
+		)@watch(researchAmount)
+	then
+		modify($city){
+			setResearchAmount((Integer)Math.floor((double)$research*1.5))
+		}
+end
+
+rule "Manufacturing Plant"
+	dialect "mvel"
+	ruleflow-group "manageProductions"
+	activation-group "factoryVsmanufacturingPlant"
+	salience -15
+	lock-on-active true
+	when
+		$city:CityDTO(
+			improvements contains "manufacturingPlant"
+			, $resourcesProduction:resourcesProduction
+		)@watch(resourcesProduction)
+	then
+		modify($city){
+			setResourcesProduction((Integer)Math.floor($resourcesProduction*2))
+		}
+end
+
+rule "Manufacturing Plant With A Power Plant"
+	dialect "mvel"
+	ruleflow-group "manageProductions"
+	activation-group "factoryVsmanufacturingPlant"
+	salience -10 // higher than of rule "Manufacturing Plant"
+	lock-on-active true
+	when
+		$city:CityDTO(
+			improvements contains "manufacturingPlant" 
+			&& (
+				improvements contains "hydroPlant" 
+				|| contains "nuclearPlant" 
+				|| contains "powerPlant"
+			) 
+			&& $resourcesProduction: resourcesProduction
+		)@watch(resourcesProduction)
+	then
+		modify($city){
+			setResourcesProduction((Integer)Math.floor($resourcesProduction*3))
+		}
+end 
+
+rule "Marketplace"
+	dialect "mvel"
+	ruleflow-group "manageSurpluses"
+	salience -5
+	when
+		$city: CityDTO(
+			improvements contains "marketplace"
+			, $taxRevenue:taxesAmount
+			, $luxuries:luxuriesAmount
+		)@watch(taxesAmount,luxuriesAmount)
+	then
+		modify($city){
+			setTaxesAmount((Integer)Math.floor((double)$taxRevenue*1.5))
+			,setLuxuriesAmount((Integer)Math.floor((double)$luxuries*1.5))
+		}
+end
+
+// mass transit
+
+rule "Nuclear Plant"
+	dialect "mvel"
+	ruleflow-group "manageProductions"
+	salience -5 // before rules "Factory", "Manufacturing Plant" and its variations
+	lock-on-active
+	when
+		$city: CityDTO(
+			improvements contains "nuclearPlant"
+			,$resourcesProduction: resourcesProduction
+		) @watch(resourcesProduction)
+	then
+		modify($city){
+			setResourcesProduction((Integer)Math.floor((double)$resourcesProduction*1.5))	
+		}
+end
+
+// palace
+
+rule "Power Plant"
+	dialect "mvel"
+	ruleflow-group "manageProductions"
+	salience -5 // before rules "Factory", "Manufacturing Plant" and its variations
+	lock-on-active true
+	when
+		$city: CityDTO(
+			improvements contains "powerPlant"
+			,$resourcesProduction: resourcesProduction
+		)@watch(resourcesProduction)
+	then
+		modify($city){
+			setResourcesProduction((Integer)Math.floor((double)$resourcesProduction*1.5))	
+		}
+end
+
+rule "Recycling Centre"
+	dialect "mvel"
+	ruleflow-group "cityImprovement"
+	lock-on-active true
+	when
+		$city: CityDTO(
+			improvements contains "recyclingCentre"
+			, $pollutionChance:pollutionChance
+		)@watch(pollutionChance)
+	then
+		modify($city){
+			setPollutionChance((Integer)Math.ceil($pollutionChance*(1/3)))
+		}
+end
+
+// SDI defense
+
+rule "Temple"
+	dialect "mvel"
+	ruleflow-group "affectPopulation"
+	lock-on-active true
+	when
+		$city: CityDTO(
+			improvements contains "temple"
+			,$peopleUnhappy:peopleUnhappy
+			, $peopleContent:peopleContent
+		)@watch(peopleUnhappy, peopleContent)
+	then
+		// max one person made content
+		$peopleChanged = Math.min($peopleUnhappy,1)
+		modify($city){
+			setPeopleUnhappy($peopleUnhappy- $peopleChanged)
+			,setPeopleContent($peopleContent + $peopleChanged)
+		}
+end
+
+rule "University"
+	dialect "mvel"
+	ruleflow-group "manageSurpluses"
+	activation-group "libraryUniversity"
+	salience -2
+	lock-on-active true
+	when
+		$city: CityDTO(
+			improvements contains "university"
+			, $research:researchAmount
+		)@watch(researchAmount)
+	then
+		modify($city){
+			setResearchAmount((Integer)Math.floor((double)$research*1.5))
+		}
+end
+
+rule "Library And University Combined"
+	dialect "mvel"
+	ruleflow-group "manageSurpluses"
+	activation-group "libraryUniversity"
+	salience -1 // before rules "Library" and "University" as this one replaces the two
+	lock-on-active true
+	when
+		$city: CityDTO(
+			improvements contains "library" 
+			&& contains "university"
+			,$research:researchAmount
+		)@watch(researchAmount)
+	then
+		modify($city){
+			setResearchAmount((Integer)Math.floor($research*2))
+		}
+end

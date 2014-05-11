@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:g="http://www.jboss.org/drools/flow/gpd" xmlns:tns="http://www.jboss.org/drools" xmlns="http://www.jboss.org/drools" xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd http://www.jboss.org/drools drools.xsd http://www.bpsim.org/schemas/1.0 bpsim.xsd" id="Definition" expressionLanguage="http://www.mvel.org/2.0" targetNamespace="http://www.jboss.org/drools" typeLanguage="http://www.java.com/javaTypes">
+  <bpmn2:process id="cz.muni.fi.civ.newohybat.bpmn.turnActions" tns:version="1" tns:packageName="cz.muni.fi.civ.newohybat.bpmn" tns:adHoc="false" name="Turn Actions" isExecutable="true" processType="Private">
+    <bpmn2:extensionElements>
+      <tns:import name="cz.muni.fi.civ.newohybat.drools.events.TurnEvent"/>
+    </bpmn2:extensionElements>
+    <bpmn2:startEvent id="_1" name="StartProcess">
+      <bpmn2:outgoing>_1-BusinessRuleTask_1</bpmn2:outgoing>
+    </bpmn2:startEvent>
+    <bpmn2:sequenceFlow id="_1-BusinessRuleTask_1" tns:priority="1" name="" sourceRef="_1" targetRef="BusinessRuleTask_1"/>
+    <bpmn2:businessRuleTask id="BusinessRuleTask_1" tns:ruleFlowGroup="processTiles" g:ruleFlowGroup="processTiles" name="Process Tiles">
+      <bpmn2:incoming>_1-BusinessRuleTask_1</bpmn2:incoming>
+      <bpmn2:outgoing>BusinessRuleTask_1-CallActivity_1</bpmn2:outgoing>
+    </bpmn2:businessRuleTask>
+    <bpmn2:sequenceFlow id="BusinessRuleTask_1-CallActivity_1" tns:priority="1" name="" sourceRef="BusinessRuleTask_1" targetRef="CallActivity_1"/>
+    <bpmn2:callActivity id="CallActivity_1" tns:waitForCompletion="true" tns:independent="false" name="Process Cities" calledElement="cz.muni.fi.civ.newohybat.bpmn.cityturnprocess">
+      <bpmn2:incoming>BusinessRuleTask_1-CallActivity_1</bpmn2:incoming>
+      <bpmn2:outgoing>CallActivity_1-ScriptTask_1</bpmn2:outgoing>
+      <bpmn2:ioSpecification id="InputOutputSpecification_1">
+        <bpmn2:inputSet id="InputSet_1"/>
+        <bpmn2:outputSet id="OutputSet_1"/>
+      </bpmn2:ioSpecification>
+    </bpmn2:callActivity>
+    <bpmn2:sequenceFlow id="CallActivity_1-ScriptTask_1" tns:priority="1" name="" sourceRef="CallActivity_1" targetRef="ScriptTask_1"/>
+    <bpmn2:scriptTask id="ScriptTask_1" name="Propagate New Turn">
+      <bpmn2:incoming>CallActivity_1-ScriptTask_1</bpmn2:incoming>
+      <bpmn2:outgoing>ScriptTask_1-EndEvent_1</bpmn2:outgoing>
+      <bpmn2:script>kcontext.getKnowledgeRuntime().getEntryPoint(&quot;GameControlStream&quot;).insert(new TurnEvent());</bpmn2:script>
+    </bpmn2:scriptTask>
+    <bpmn2:sequenceFlow id="ScriptTask_1-EndEvent_1" tns:priority="1" name="" sourceRef="ScriptTask_1" targetRef="EndEvent_1"/>
+    <bpmn2:endEvent id="EndEvent_1" name="">
+      <bpmn2:incoming>ScriptTask_1-EndEvent_1</bpmn2:incoming>
+    </bpmn2:endEvent>
+  </bpmn2:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_Process_1" bpmnElement="cz.muni.fi.civ.newohybat.bpmn.turnActions">
+      <bpmndi:BPMNShape id="BPMNShape_StartEvent_1" bpmnElement="_1">
+        <dc:Bounds height="48.0" width="48.0" x="45.0" y="45.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_EndEvent_1" bpmnElement="EndEvent_1">
+        <dc:Bounds height="48.0" width="48.0" x="600.0" y="45.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_BusinessRuleTask_1" bpmnElement="BusinessRuleTask_1">
+        <dc:Bounds height="50.0" width="110.0" x="140.0" y="44.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_CallActivity_1" bpmnElement="CallActivity_1">
+        <dc:Bounds height="50.0" width="110.0" x="290.0" y="44.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_ScriptTask_1" bpmnElement="ScriptTask_1">
+        <dc:Bounds height="50.0" width="120.0" x="441.0" y="44.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="BPMNEdge_SequenceFlow_1" bpmnElement="_1-BusinessRuleTask_1" sourceElement="BPMNShape_StartEvent_1" targetElement="BPMNShape_BusinessRuleTask_1">
+        <di:waypoint xsi:type="dc:Point" x="93.0" y="69.0"/>
+        <di:waypoint xsi:type="dc:Point" x="114.0" y="69.0"/>
+        <di:waypoint xsi:type="dc:Point" x="114.0" y="69.0"/>
+        <di:waypoint xsi:type="dc:Point" x="140.0" y="69.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_SequenceFlow_2" bpmnElement="BusinessRuleTask_1-CallActivity_1" sourceElement="BPMNShape_BusinessRuleTask_1" targetElement="BPMNShape_CallActivity_1">
+        <di:waypoint xsi:type="dc:Point" x="250.0" y="69.0"/>
+        <di:waypoint xsi:type="dc:Point" x="280.0" y="69.0"/>
+        <di:waypoint xsi:type="dc:Point" x="280.0" y="69.0"/>
+        <di:waypoint xsi:type="dc:Point" x="290.0" y="69.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_SequenceFlow_3" bpmnElement="CallActivity_1-ScriptTask_1" sourceElement="BPMNShape_CallActivity_1" targetElement="BPMNShape_ScriptTask_1">
+        <di:waypoint xsi:type="dc:Point" x="400.0" y="69.0"/>
+        <di:waypoint xsi:type="dc:Point" x="418.0" y="69.0"/>
+        <di:waypoint xsi:type="dc:Point" x="418.0" y="69.0"/>
+        <di:waypoint xsi:type="dc:Point" x="441.0" y="69.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_SequenceFlow_4" bpmnElement="ScriptTask_1-EndEvent_1" sourceElement="BPMNShape_ScriptTask_1" targetElement="BPMNShape_EndEvent_1">
+        <di:waypoint xsi:type="dc:Point" x="561.0" y="69.0"/>
+        <di:waypoint xsi:type="dc:Point" x="600.0" y="69.0"/>
+        <di:waypoint xsi:type="dc:Point" x="600.0" y="69.0"/>
+        <di:waypoint xsi:type="dc:Point" x="600.0" y="69.0"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn2:definitions>

@@ -1,0 +1,80 @@
+/** ALL TESTED **/
+/* Used throughout many testcases. No special test set created. */
+
+//created on: Apr 25, 2014
+package cz.muni.fi.civ.newohybat.drools.rules
+
+//list any import classes here.
+import org.kie.api.runtime.rule.FactHandle;
+
+rule "Build City Process Waits For Turn"
+	salience 50
+	when
+		WorkflowProcessInstance(
+			getProcessId()=="cz.muni.fi.civ.newohybat.bpmn.buildCity"
+			,$processId:id
+		)
+		not ProcessWaitsForTurnEvent(processId==$processId)
+	then
+		insert(new ProcessWaitsForTurnEvent($processId));
+end
+
+rule "Build Unit Process Waits For Turn"
+	salience 50
+	when
+		WorkflowProcessInstance(
+			getProcessId()=="cz.muni.fi.civ.newohybat.bpmn.buildUnit"
+			,$processId:id
+		)
+		not ProcessWaitsForTurnEvent(processId==$processId)
+	then
+		insert(new ProcessWaitsForTurnEvent($processId));
+end
+
+rule "Build CityImprovement Process Waits For Turn"
+	salience 50
+	when
+		$pi:WorkflowProcessInstance(
+				getProcessId()=="cz.muni.fi.civ.newohybat.bpmn.buildCityImprovement"
+				,$processId:id
+		)
+		not ProcessWaitsForTurnEvent(processId==$processId)
+	then
+		insert(new ProcessWaitsForTurnEvent($processId));
+end
+
+rule "Build TileImprovement Process Waits For Turn"
+	salience 50
+	when
+		WorkflowProcessInstance(
+			getProcessId()=="cz.muni.fi.civ.newohybat.bpmn.buildTileImprovement"
+			,$processId:id
+		)
+		not ProcessWaitsForTurnEvent(processId==$processId)
+	then
+		insert(new ProcessWaitsForTurnEvent($processId));
+end
+
+rule "Discover Advance Process Waits For Turn"
+	salience 50
+	when
+		WorkflowProcessInstance(
+			getProcessId()=="cz.muni.fi.civ.newohybat.bpmn.discoverAdvance"
+			,$processId:id
+		)
+		not ProcessWaitsForTurnEvent(processId==$processId)
+	then
+		insert(new ProcessWaitsForTurnEvent($processId));
+end
+
+rule "Signal New Turn"
+	dialect "mvel"
+	when
+		$pi:ProcessWaitsForTurnEvent(
+			$processId:processId
+		)
+		TurnEvent(this after $pi) from entry-point "GameControlStream"
+	then
+		kcontext.getKnowledgeRuntime().signalEvent("turn-new",null,$processId);
+end
+

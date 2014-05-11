@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?> 
+<definitions id="Definition"
+             targetNamespace="http://www.jboss.org/drools"
+             typeLanguage="http://www.java.com/javaTypes"
+             expressionLanguage="http://www.mvel.org/2.0"
+             xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd"
+             xmlns:g="http://www.jboss.org/drools/flow/gpd"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+             xmlns:tns="http://www.jboss.org/drools">
+
+  <itemDefinition id="_cityItem" structureRef="cz.muni.fi.civ.newohybat.persistence.facade.dto.CityDTO" />
+  <itemDefinition id="_weLoveDayItem" structureRef="Boolean" />
+  <itemDefinition id="_disorderItem" structureRef="Boolean" />
+  <itemDefinition id="_foodStockItem" structureRef="Integer" />
+  <itemDefinition id="_resourcesStockItem" structureRef="Integer" />
+  <itemDefinition id="_foodSurplusItem" structureRef="Integer" />
+  <itemDefinition id="_resourcesSurplusItem" structureRef="Integer" />
+  <itemDefinition id="_eventItem" />
+
+  <process processType="Private" isExecutable="true" id="cz.muni.fi.civ.newohybat.bpmn.cityturnprocess" name="Sample Process" tns:packageName="cz.muni.fi.civ.newohybat.bpmn" tns:version="cz.muni.fi.civ.newohybat.bpmn.manageproduction" >
+
+    <extensionElements>
+     <tns:import name="cz.muni.fi.civ.newohybat.persistence.facade.dto.CityDTO" />
+    </extensionElements>
+    <!-- process variables -->
+    <property id="city" itemSubjectRef="_cityItem"/>
+    <property id="weLoveDay" itemSubjectRef="_weLoveDayItem"/>
+    <property id="disorder" itemSubjectRef="_disorderItem"/>
+    <property id="foodStock" itemSubjectRef="_foodStockItem"/>
+    <property id="resourcesStock" itemSubjectRef="_resourcesStockItem"/>
+    <property id="foodSurplus" itemSubjectRef="_foodSurplusItem"/>
+    <property id="resourcesSurplus" itemSubjectRef="_resourcesSurplusItem"/>
+    <property id="event" itemSubjectRef="_eventItem"/>
+
+    <!-- nodes -->
+    <businessRuleTask id="_34" name="Manage Surpluses" g:ruleFlowGroup="manageSurpluses" >
+    </businessRuleTask>
+    <startEvent id="_1" name="StartProcess" />
+    <businessRuleTask id="_32" name="Get City Mood" g:ruleFlowGroup="cityMood" >
+    </businessRuleTask>
+    <businessRuleTask id="_33" name="Affect Population" g:ruleFlowGroup="affectPopulation" >
+    </businessRuleTask>
+    <businessRuleTask id="_19" name="Count Productions" g:ruleFlowGroup="manageProductions" >
+    </businessRuleTask>
+    <endEvent id="_18" name="End" >
+        <terminateEventDefinition />
+    </endEvent>
+    <businessRuleTask id="_27" name="Update City Tiles" g:ruleFlowGroup="updateCityTiles" >
+    </businessRuleTask>
+    <businessRuleTask id="_28" name="Count Consumptions" g:ruleFlowGroup="manageConsumptions" >
+    </businessRuleTask>
+
+    <!-- connections -->
+    <sequenceFlow id="_28-_34" sourceRef="_28" targetRef="_34" />
+    <sequenceFlow id="_1-_32" sourceRef="_1" targetRef="_32" />
+    <sequenceFlow id="_34-_33" sourceRef="_34" targetRef="_33" />
+    <sequenceFlow id="_27-_19" sourceRef="_27" targetRef="_19" />
+    <sequenceFlow id="_33-_18" sourceRef="_33" targetRef="_18" />
+    <sequenceFlow id="_32-_27" sourceRef="_32" targetRef="_27" />
+    <sequenceFlow id="_19-_28" sourceRef="_19" targetRef="_28" />
+
+  </process>
+
+  <bpmndi:BPMNDiagram>
+    <bpmndi:BPMNPlane bpmnElement="cz.muni.fi.civ.newohybat.bpmn.cityturnprocess" >
+      <bpmndi:BPMNShape bpmnElement="_34" >
+        <dc:Bounds x="427" y="303" width="103" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="_1" >
+        <dc:Bounds x="45" y="45" width="48" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="_32" >
+        <dc:Bounds x="130" y="46" width="80" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="_33" >
+        <dc:Bounds x="495" y="368" width="101" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="_19" >
+        <dc:Bounds x="267" y="172" width="108" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="_18" >
+        <dc:Bounds x="645" y="369" width="48" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="_27" >
+        <dc:Bounds x="191" y="110" width="95" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="_28" >
+        <dc:Bounds x="344" y="233" width="121" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="_28-_34" >
+        <di:waypoint x="404" y="257" />
+        <di:waypoint x="478" y="327" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="_1-_32" >
+        <di:waypoint x="69" y="69" />
+        <di:waypoint x="170" y="70" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="_34-_33" >
+        <di:waypoint x="478" y="327" />
+        <di:waypoint x="545" y="392" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="_27-_19" >
+        <di:waypoint x="238" y="134" />
+        <di:waypoint x="321" y="196" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="_33-_18" >
+        <di:waypoint x="545" y="392" />
+        <di:waypoint x="669" y="393" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="_32-_27" >
+        <di:waypoint x="170" y="70" />
+        <di:waypoint x="238" y="134" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="_19-_28" >
+        <di:waypoint x="321" y="196" />
+        <di:waypoint x="404" y="257" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</definitions>

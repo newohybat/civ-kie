@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?> 
+<definitions id="Definition"
+             targetNamespace="http://www.jboss.org/drools"
+             typeLanguage="http://www.java.com/javaTypes"
+             expressionLanguage="http://www.mvel.org/2.0"
+             xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd"
+             xmlns:g="http://www.jboss.org/drools/flow/gpd"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+             xmlns:tns="http://www.jboss.org/drools">
+
+  <itemDefinition id="_turnsSpentItem" structureRef="Integer" />
+  <itemDefinition id="_impItem" structureRef="String" />
+  <itemDefinition id="_unitItem" structureRef="Integer" />
+  <itemDefinition id="_eventItem" />
+  <itemDefinition id="_tileItem" />
+
+  <process processType="Private" isExecutable="true" id="cz.muni.fi.civ.newohybat.bpmn.buildTileImprovement" name="Build Tile Improvement" tns:packageName="cz.muni.fi.civ.newohybat.bpmn" >
+
+    <extensionElements>
+     <tns:import name="cz.muni.fi.civ.newohybat.persistence.facade.dto.TileImprovementDTO" />
+     <tns:import name="cz.muni.fi.civ.newohybat.drools.events.TileImprovementEvent" />
+    </extensionElements>
+    <!-- process variables -->
+    <property id="turnsSpent" itemSubjectRef="_turnsSpentItem"/>
+    <property id="imp" itemSubjectRef="_impItem"/>
+    <property id="unit" itemSubjectRef="_unitItem"/>
+    <property id="event" itemSubjectRef="_eventItem"/>
+    <property id="tile" itemSubjectRef="_tileItem"/>
+
+    <!-- nodes -->
+    <startEvent id="_1" name="StartProcess" />
+    <intermediateCatchEvent id="_5" name="Signal" >
+      <dataOutput id="_5_Output" name="event" />
+      <dataOutputAssociation>
+      <sourceRef>_5_Output</sourceRef>
+      <targetRef>event</targetRef>
+      </dataOutputAssociation>
+      <outputSet>
+        <dataOutputRefs>_5_Output</dataOutputRefs>
+      </outputSet>
+      <signalEventDefinition signalRef="turn-new"/>
+    </intermediateCatchEvent>
+    <scriptTask id="_6" name="Process Turn" >
+      <script>kcontext.setVariable("turnsSpent",turnsSpent + 1);</script>
+    </scriptTask>
+    <exclusiveGateway id="_7" name="Gateway" gatewayDirection="Diverging" />
+    <scriptTask id="_8" name="Complete" >
+      <script>tile.getImprovements().add(imp.ident);
+unit.setCurrentAction(null);
+kcontext.getKnowledgeRuntime().getEntryPoint("ActionCompletedStream").insert(new TileImprovementEvent(unit.getId()))</script>
+    </scriptTask>
+    <endEvent id="_9" name="End" />
+    <endEvent id="_10" name="End" >
+        <terminateEventDefinition />
+    </endEvent>
+    <endEvent id="_13" name="End" >
+        <terminateEventDefinition />
+    </endEvent>
+    <intermediateCatchEvent id="_15" name="Signal" >
+      <dataOutput id="_15_Output" name="event" />
+      <dataOutputAssociation>
+      <sourceRef>_15_Output</sourceRef>
+      <targetRef>event</targetRef>
+      </dataOutputAssociation>
+      <outputSet>
+        <dataOutputRefs>_15_Output</dataOutputRefs>
+      </outputSet>
+      <signalEventDefinition signalRef="cancel"/>
+    </intermediateCatchEvent>
+
+    <!-- connections -->
+    <sequenceFlow id="_5-_6" sourceRef="_5" targetRef="_6" />
+    <sequenceFlow id="_6-_7" sourceRef="_6" targetRef="_7" />
+    <sequenceFlow id="_7-_8" sourceRef="_7" targetRef="_8" name="Can Complete" >
+      <conditionExpression xsi:type="tFormalExpression" >return kcontext.getVariable("turnsSpent") &gt;=imp.cost</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="_7-_9" sourceRef="_7" targetRef="_9" name="Not Yet" tns:priority="1" >
+      <conditionExpression xsi:type="tFormalExpression" language="http://www.jboss.org/drools/rule" >eval(true)</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="_8-_10" sourceRef="_8" targetRef="_10" />
+    <sequenceFlow id="_15-_13" sourceRef="_15" targetRef="_13" />
+    <sequenceFlow id="_1-_15" sourceRef="_1" targetRef="_15" />
+
+  </process>
+
+  <bpmndi:BPMNDiagram>
+    <bpmndi:BPMNPlane bpmnElement="cz.muni.fi.civ.newohybat.bpmn.buildTileImprovement" >
+      <bpmndi:BPMNShape bpmnElement="_1" >
+        <dc:Bounds x="37" y="50" width="48" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="_5" >
+        <dc:Bounds x="82" y="138" width="48" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="_6" >
+        <dc:Bounds x="166" y="139" width="105" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="_7" >
+        <dc:Bounds x="308" y="138" width="48" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="_8" >
+        <dc:Bounds x="452" y="138" width="80" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="_9" >
+        <dc:Bounds x="461" y="215" width="48" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="_10" >
+        <dc:Bounds x="557" y="139" width="48" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="_13" >
+        <dc:Bounds x="316" y="51" width="48" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="_15" >
+        <dc:Bounds x="171" y="50" width="48" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="_5-_6" >
+        <di:waypoint x="106" y="162" />
+        <di:waypoint x="218" y="163" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="_6-_7" >
+        <di:waypoint x="218" y="163" />
+        <di:waypoint x="332" y="162" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="_7-_8" >
+        <di:waypoint x="332" y="162" />
+        <di:waypoint x="492" y="162" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="_7-_9" >
+        <di:waypoint x="332" y="162" />
+        <di:waypoint x="485" y="239" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="_8-_10" >
+        <di:waypoint x="492" y="162" />
+        <di:waypoint x="581" y="163" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="_15-_13" >
+        <di:waypoint x="195" y="74" />
+        <di:waypoint x="340" y="75" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="_1-_15" >
+        <di:waypoint x="61" y="74" />
+        <di:waypoint x="195" y="74" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</definitions>

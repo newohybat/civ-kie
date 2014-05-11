@@ -1,0 +1,533 @@
+/** ALL TESTED **/
+/* No special test file, but in tests of consumption and production */
+
+//created on: Feb 15, 2014
+package cz.muni.fi.civ.newohybat.drools.rules
+
+//list any import classes here.
+
+//declare any global variables here
+
+ 
+
+rule "Despotism Units Support"
+	dialect "mvel"
+	ruleflow-group "manageConsumptions"
+	when
+		UpdateUnitsSupport( $cityId:cityId)
+		$city:CityDTO(
+			id==$cityId
+			, $homeUnits:homeUnits
+			, $citySize:size
+			, $unitsSupport:unitsSupport
+			, $foodConsumption:foodConsumption
+			, $owner:owner
+		)@watch(!*)
+		PlayerDTO(
+			id==$owner, government=="despotism"
+		)@watch(!*, government)
+		accumulate(
+			$type:UnitTypeDTO(
+				military==true
+			)
+			,$militaryTypes:collectList($type.ident)
+		)
+		accumulate(
+			$unit:UnitDTO(
+				id memberOf $homeUnits
+				, $unitId:id
+				, type memberOf $militaryTypes
+			)
+			,$unitsToCount:count($unit)
+		)
+		accumulate(
+			$unit:UnitDTO(
+				id memberOf $homeUnits
+				, type=="settler"
+			)
+			,$unitsSettlers:count($unit)
+		)
+	then
+		$unitsExceeded = Math.max(0,$unitsToCount-$citySize)
+		modify($city){
+			setUnitsSupport((int)($unitsSupport + $unitsExceeded*1))
+			,setFoodConsumption((int)($foodConsumption + $unitsSettlers))
+		}
+end
+
+rule "Despotism Restricted City Tiles Production"
+	dialect "mvel"
+	ruleflow-group "manageProductions"
+	salience 1
+	when
+		PlayerDTO($owner:id, government=="despotism")
+		$city:CityDTO(
+			owner==$owner
+			,$cityId:id
+			,$managedTiles:managedTiles
+		)@watch(!*)
+		accumulate(
+					TileDTO (
+							id memberOf $managedTiles
+							,$foodProd:foodProduction
+							,$resourcesProd:resourcesProduction
+							,$tradeProd:tradeProduction
+					) @watch(foodProduction,resourcesProduction,tradeProduction)
+					,$sumFood : sum(($foodProd<3)?$foodProd:($foodProd-1))
+					,$sumResources : sum(($resourcesProd<3)?$resourcesProd:($resourcesProd-1))
+					,$sumTrade : sum(($tradeProd<3)?$tradeProd:($tradeProd-1))
+					,$tiles: collectList($foodProd)
+		)
+		UpdateCityProduction(cityId==$cityId)
+	then
+		modify($city){
+			setFoodProduction($sumFood)
+			,setResourcesProduction($sumResources)
+			,setTradeProduction($sumTrade)
+		}
+end
+
+rule "Despotism WeLoveDay City Tiles Production"
+	dialect "mvel"
+	ruleflow-group "manageProductions"
+	when
+		PlayerDTO($owner:id,government == "despotism")
+		$city:CityDTO(
+			owner==$owner
+			, weLoveDay==true
+			,$cityId:id
+			,$managedTiles:managedTiles
+		)
+		accumulate( 
+					TileDTO (
+							id memberOf $managedTiles
+							,$foodProd:foodProduction
+							,$resourcesProd:resourcesProduction
+							,$tradeProd:tradeProduction
+					) @watch(foodProduction,resourcesProduction,tradeProduction)
+					,$sumFood : sum($foodProd)
+					,$sumResources : sum($resourcesProd)
+					,$sumTrade : sum($tradeProd)
+		)
+		UpdateCityProduction(cityId==$cityId)
+	then
+		modify($city){
+			setFoodProduction($sumFood)
+			,setResourcesProduction($sumResources)
+			,setTradeProduction($sumTrade)
+		}
+end
+
+rule "Monarchy Units Support"
+	dialect "mvel"
+	ruleflow-group "manageConsumptions"
+	when
+		PlayerDTO(
+			$owner:id
+			, government=="monarchy"
+		)
+		$city:CityDTO(
+			owner==$owner
+			,$homeUnits:homeUnits
+			,$unitsSupport:unitsSupport
+			,$foodConsumption:foodConsumption
+			,$cityId:id
+		)@watch(!*)
+		accumulate(
+			$type:UnitTypeDTO(
+				military==true
+			)
+			,$militaryTypes:collectList($type.ident)
+		)
+		accumulate(
+			$unit:UnitDTO(
+				id memberOf $homeUnits
+				, $unitId:id
+				, type memberOf $militaryTypes
+			)
+			,$unitsToCount:count($unit)
+		)
+		accumulate(
+			$unit:UnitDTO(
+				id memberOf $homeUnits
+				, type=="settler"
+			)
+			,$unitsSettlers:count($unit)
+		)
+		UpdateUnitsSupport( cityId == $cityId)
+	then
+		$unitsSupport = $unitsSupport + (int)($unitsToCount*1);
+		$totalFood = $foodConsumption + (int)($unitsSettlers*2);
+		modify($city){
+			setUnitsSupport($unitsSupport)
+			,setFoodConsumption( $totalFood )
+		}
+end
+
+rule "Monarchy WeLoveDay City Tiles Production"
+	dialect "mvel"
+	ruleflow-group "manageProductions"
+	when
+		PlayerDTO($owner:id, government=="monarchy")
+		$city:CityDTO(
+			owner==$owner
+			,weLoveDay==true
+			,$cityId:id
+			,$managedTiles:managedTiles
+		)
+		accumulate(
+					TileDTO (
+							id memberOf $managedTiles
+							,$foodProd:foodProduction
+							,$resourcesProd:resourcesProduction
+							,$tradeProd:tradeProduction
+					) @watch(foodProduction,resourcesProduction,tradeProduction)
+					,$sumFood : sum($foodProd)
+					,$sumResources : sum($resourcesProd)
+					,$sumTrade : sum(($tradeProd<1)?$tradeProd:($tradeProd+1))
+		)
+		UpdateCityProduction(cityId==$cityId)
+	then
+		modify($city){
+			setFoodProduction($sumFood)
+			,setResourcesProduction($sumResources)
+			,setTradeProduction($sumTrade)
+		}
+end
+
+rule "Monarchy City Tiles Production"
+	dialect "mvel"
+	ruleflow-group "manageProductions"
+	salience 1
+	when
+		PlayerDTO($owner:id,government=="monarchy")
+		$city:CityDTO(
+			owner==$owner
+			,$cityId:id
+			,$managedTiles:managedTiles
+		)
+		accumulate(
+					TileDTO (
+							id memberOf $managedTiles
+							,$foodProd:foodProduction
+							,$resourcesProd:resourcesProduction
+							,$tradeProd:tradeProduction
+					) @watch(foodProduction,resourcesProduction,tradeProduction)
+					,$sumFood : sum($foodProd)
+					,$sumResources : sum($resourcesProd)
+					,$sumTrade : sum($tradeProd)
+		)
+		UpdateCityProduction(cityId==$cityId)
+	then
+		modify($city){
+			setFoodProduction($sumFood)
+			,setResourcesProduction($sumResources)
+			,setTradeProduction($sumTrade)
+		}
+end
+
+rule "Communism Units Support"
+	dialect "mvel"
+	ruleflow-group "manageConsumptions"
+	when
+		PlayerDTO($owner:id, government=="communism")
+		$city:CityDTO(
+				owner==$owner, $homeUnits:homeUnits
+				, $unitsSupport:unitsSupport
+				,$foodConsumption:foodConsumption
+				,$cityId:id
+		)@watch(!*)
+		accumulate(
+			$type:UnitTypeDTO(
+				military==true
+			)
+			,$militaryTypes:collectList($type.ident)
+		)
+		accumulate(
+			$unit:UnitDTO(
+				id memberOf $homeUnits
+				, $unitId:id
+				, type memberOf $militaryTypes
+			)
+			,$unitsToCount:count($unit)
+		)
+		accumulate(
+			$unit:UnitDTO(
+				id memberOf $homeUnits
+				, type=="settler"
+			)
+			,$unitsSettlers:count($unit)
+		)
+		UpdateUnitsSupport( cityId == $cityId)
+	then
+		modify($city){
+			setUnitsSupport($unitsSupport + (int)($unitsToCount*1))
+			,setFoodConsumption($foodConsumption + (int)($unitsSettlers*2))
+		}
+end
+
+rule "Communism WeLoveDay City Tiles Production"
+	dialect "mvel"
+	ruleflow-group "manageProductions"
+	when
+		PlayerDTO($owner:id, government=="communism")
+		$city:CityDTO(
+			owner==$owner
+			,weLoveDay==true
+			,$cityId:id
+			,$managedTiles:managedTiles
+		)
+		accumulate(
+					TileDTO (
+							id memberOf $managedTiles
+							,$foodProd:foodProduction
+							,$resourcesProd:resourcesProduction
+							,$tradeProd:tradeProduction
+					) @watch(foodProduction,resourcesProduction,tradeProduction)
+					,$sumFood : sum($foodProd)
+					,$sumResources : sum($resourcesProd)
+					,$sumTrade : sum(($tradeProd<1)?$tradeProd:($tradeProd+1))
+		)
+		UpdateCityProduction(cityId==$cityId)
+	then
+		modify($city){
+			setFoodProduction($sumFood)
+			,setResourcesProduction($sumResources)
+			,setTradeProduction($sumTrade)
+		}
+end
+rule "Communism City Tiles Production"
+	dialect "mvel"
+	ruleflow-group "manageProductions"
+	salience 1
+	when
+		PlayerDTO($owner:id,government=="communism")
+		$city:CityDTO(
+			owner==$owner
+			,$cityId:id
+			,$managedTiles:managedTiles
+		)
+		accumulate(
+					TileDTO (
+							id memberOf $managedTiles
+							,$foodProd:foodProduction
+							,$resourcesProd:resourcesProduction
+							,$tradeProd:tradeProduction
+					) @watch(foodProduction,resourcesProduction,tradeProduction)
+					,$sumFood : sum($foodProd)
+					,$sumResources : sum($resourcesProd)
+					,$sumTrade : sum($tradeProd)
+		)
+		UpdateCityProduction(cityId==$cityId)
+	then
+		modify($city){
+			setFoodProduction($sumFood)
+			,setResourcesProduction($sumResources)
+			,setTradeProduction($sumTrade)
+		}
+end
+
+rule "The Republic City Tiles Production"
+	dialect "mvel"
+	ruleflow-group "manageProductions"
+	when
+		PlayerDTO($owner:id, government=="theRepublic")
+		$city:CityDTO(
+			owner==$owner
+			,$cityId:id
+			,$managedTiles:managedTiles
+		)
+		accumulate(
+					TileDTO (
+							id memberOf $managedTiles
+							,$foodProd:foodProduction
+							,$resourcesProd:resourcesProduction
+							,$tradeProd:tradeProduction
+					) @watch(foodProduction,resourcesProduction,tradeProduction)
+					,$sumFood : sum($foodProd)
+					,$sumResources : sum($resourcesProd)
+					,$sumTrade : sum(($tradeProd<1)?$tradeProd:($tradeProd+1))
+		)
+		UpdateCityProduction(cityId==$cityId)
+	then
+		modify($city){
+			setFoodProduction($sumFood)
+			,setResourcesProduction($sumResources)
+			,setTradeProduction($sumTrade)
+		}
+end
+
+rule "The Republic Units Support"
+	dialect "mvel"
+	ruleflow-group "manageConsumptions"
+	when
+		PlayerDTO($owner:id, government=="theRepublic")
+		$city:CityDTO(
+			owner==$owner
+			, $homeUnits:homeUnits
+			, $unitsSupport:unitsSupport
+			,$foodConsumption:foodConsumption
+			,$cityId:id
+		)@watch(!*)
+		accumulate(
+			$type:UnitTypeDTO(
+				military==true
+			)
+			,$militaryTypes:collectList($type.ident)
+		)
+		accumulate(
+			$unit:UnitDTO(
+				id memberOf $homeUnits
+				, $unitId:id
+				, type memberOf $militaryTypes
+			)
+			,$unitsToCount:count($unit)
+		)
+		accumulate(
+			$unit:UnitDTO(
+				id memberOf $homeUnits
+				, type=="settler"
+			)
+			,$unitsSettlers:count($unit)
+		)
+		UpdateUnitsSupport( cityId == $cityId )
+	then
+		modify($city){
+			setUnitsSupport((int)($unitsSupport + (int)($unitsToCount*1)))
+			,setFoodConsumption((int)($foodConsumption + (int)($unitsSettlers*2)))
+		}
+end
+
+rule "The Republic Units Not In Home City Makes People Unhappy"
+	dialect "mvel"
+	no-loop
+	ruleflow-group "affectPopulation"
+	when
+		PlayerDTO($owner:id, government=="theRepublic")
+		$city:CityDTO(
+			owner==$owner
+			, $homeUnits:homeUnits
+			, $cityCentre:cityCentre
+			, $peopleUnhappy:peopleUnhappy
+			, $peopleHappy:peopleHappy
+			, $peopleContent:peopleContent
+		)
+		accumulate($unit: UnitDTO(id memberOf $homeUnits, tile!=$cityCentre),$unitsNotInHomeCity:count($unit))
+	then
+		$restOfContent = (int)Math.max($peopleContent - $unitsNotInHomeCity,0)
+		$toMakeUnhappy = (int)($unitsNotInHomeCity - ($peopleContent -$restOfContent))
+		$restOfHappy = (int)(($toMakeUnhappy>0)?Math.max($peopleHappy - $toMakeUnhappy,0):$peopleHappy);
+		$newUnhappy = (int)(($peopleContent - $restOfContent) + ($peopleHappy-$toMakeUnhappy))
+		modify($city){
+			setPeopleContent($restOfContent)
+			,setPeopleHappy($restOfHappy)
+			,setPeopleUnhappy($peopleUnhappy + $newUnhappy)
+		}
+end
+
+rule "Democracy Units Support"
+	dialect "mvel"
+	ruleflow-group "manageConsumptions"
+	when
+		PlayerDTO($owner:id, government=="democracy")
+		$city:CityDTO(
+			owner==$owner
+			, $homeUnits:homeUnits
+			, $unitsSupport:unitsSupport
+			, $foodConsumption:foodConsumption
+			,$cityId:id
+		)@watch(!*)
+		accumulate(
+			$type:UnitTypeDTO(
+				military==true
+			)
+			,$militaryTypes:collectList($type.ident)
+		)
+		accumulate(
+			$unit:UnitDTO(
+				id memberOf $homeUnits
+				, $unitId:id
+				, type memberOf $militaryTypes
+			)
+			,$unitsToCount:count($unit)
+		)
+		accumulate(
+			$unit:UnitDTO(
+				id memberOf $homeUnits
+				, type=="settler"
+			)
+			,$unitsSettlers:count($unit)
+		)
+		UpdateUnitsSupport( cityId == $cityId)
+	then
+		modify($city){
+			setUnitsSupport((int)($unitsSupport + (int)($unitsToCount*1)))
+			,setFoodConsumption( (int)($foodConsumption + (int)($unitsSettlers*2)))
+		}
+end
+
+rule "Democracy City Tiles Production"
+	dialect "mvel"
+	ruleflow-group "manageProductions"
+	when
+		PlayerDTO($owner:id, government=="democracy")
+		$city:CityDTO(
+			owner==$owner
+			,$cityId:id
+			,$managedTiles:managedTiles
+		)
+		accumulate(
+					TileDTO (
+							id memberOf $managedTiles
+							,$foodProd:foodProduction
+							,$resourcesProd:resourcesProduction
+							,$tradeProd:tradeProduction
+					) @watch(foodProduction,resourcesProduction,tradeProduction)
+					,$sumFood : sum($foodProd)
+					,$sumResources : sum($resourcesProd)
+					,$sumTrade : sum(($tradeProd<1)?$tradeProd:($tradeProd+1))
+		)
+		UpdateCityProduction(cityId==$cityId)
+	then
+		modify($city){
+			setFoodProduction($sumFood)
+			,setResourcesProduction($sumResources)
+			,setTradeProduction($sumTrade)
+		}
+end
+
+
+rule "Democracy Units Not In Home City Makes People Unhappy"
+	dialect "mvel"
+	no-loop
+	ruleflow-group "affectPopulation"
+	when
+		PlayerDTO($owner:id, government=="democracy")
+		$city:CityDTO(
+			owner==$owner
+			, $homeUnits:homeUnits
+			, $cityCentre:cityCentre
+			, $peopleUnhappy:peopleUnhappy
+			, $peopleHappy:peopleHappy
+			, $peopleContent:peopleContent
+		)
+		accumulate(
+			$unit: UnitDTO(
+				id memberOf $homeUnits
+				, tile!=$cityCentre
+			)
+			,$unitsNotInHomeCity:count($unit)
+		)
+	then
+		$restOfContent = (int)Math.max(($peopleContent - (int)(2*$unitsNotInHomeCity)),0);
+		$toMakeUnhappy = (int)(2*$unitsNotInHomeCity) - ($peopleContent -$restOfContent);
+		$restOfHappy = ($toMakeUnhappy>0)?Math.max($peopleHappy - $toMakeUnhappy,0):$peopleHappy;
+		$newUnhappy = ($peopleContent - $restOfContent) + ($peopleHappy-$toMakeUnhappy);
+		modify($city){
+			setPeopleContent($restOfContent)
+			,setPeopleHappy( $restOfHappy)
+			,setPeopleUnhappy($peopleUnhappy + $newUnhappy)
+		}
+end
+
+
