@@ -3,7 +3,7 @@
   <groupId>cz.muni.fi.civ</groupId>
   <artifactId>civ-kie</artifactId>
   <version>0.0.1-SNAPSHOT</version>
-  <name>Civ Kie</name>
+  <name>civ-kie</name>
   <description>Rules and processes</description>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -89,7 +89,7 @@
 	</dependency>    
 	<dependency>
 		<groupId>cz.muni.fi.civ</groupId>
-		<artifactId>civ.backend</artifactId>
+		<artifactId>civ-persistence</artifactId>
 		<version>1.0-SNAPSHOT</version>
 		<scope>test</scope>
 	</dependency>
