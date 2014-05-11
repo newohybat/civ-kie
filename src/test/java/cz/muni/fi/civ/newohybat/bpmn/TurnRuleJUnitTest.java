@@ -111,7 +111,6 @@ public class TurnRuleJUnitTest extends BaseJUnitTest {
     }
     @Test
     public void testCityStarvesOutAnotherGrows(){
-    	ksession.addEventListener(new DebugAgendaEventListener());
     	AgendaEventListener ael = mock( AgendaEventListener.class );
     	ksession.addEventListener( ael );
     	
@@ -180,16 +179,20 @@ public class TurnRuleJUnitTest extends BaseJUnitTest {
 		// start the game
 		ProcessInstance pi = ksession.startProcess("cz.muni.fi.civ.newohybat.bpmn.turn", params);
 		
-		ksession.fireAllRules();
+		Thread t1 = new Thread(new Runnable() {
+	     public void run()
+	     {
+	          // code goes here.
+	    	 ksession.fireAllRules();
+	     }});  t1.start();
+		
 		
 		try {
-			Thread.sleep(1000);
+			Thread.sleep(800);
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
-		
 		Assert.assertTrue("Starving City has size 4", starvingCity.getSize()==4);
 		Assert.assertTrue("Starving city has foodConsumption 10", starvingCity.getFoodConsumption()==10);
 		Assert.assertTrue("Growing City Has Food Surplus 4",(growingCity.getFoodProduction()-growingCity.getFoodConsumption())==4);

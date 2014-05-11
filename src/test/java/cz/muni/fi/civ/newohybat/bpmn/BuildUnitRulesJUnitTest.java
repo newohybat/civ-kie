@@ -45,6 +45,7 @@ public class BuildUnitRulesJUnitTest extends BaseJUnitTest {
     	CityDTO city = getCity(1L, "marefy");
     	Set<String> improvements = new HashSet<String>();
     	city.setImprovements(improvements);
+    	city.getEnabledUnitTypes().add("phalanx");
     	
     	// this type of unit will be created and triggers the process
     	city.setCurrentUnit("phalanx");
@@ -111,7 +112,8 @@ public class BuildUnitRulesJUnitTest extends BaseJUnitTest {
     	CityDTO city = getCity(1L, "marefy");
     	Set<String> improvements = new HashSet<String>();
     	city.setImprovements(improvements);
-    	
+
+    	city.getEnabledUnitTypes().add("phalanx");
     	// this type of unit will be created and triggers the process
     	city.setCurrentUnit("phalanx");
     	city.setResourcesSurplus(300);
@@ -223,6 +225,7 @@ public class BuildUnitRulesJUnitTest extends BaseJUnitTest {
     	CityDTO city = getCity(1L, "marefy");
     	Set<String> improvements = new HashSet<String>();
     	city.setImprovements(improvements);
+    	city.getEnabledUnitTypes().add("phalanx");
     	// this unit will be created, trigger of the process
     	city.setCurrentUnit("phalanx");
     	city.setResourcesSurplus(300);
@@ -270,8 +273,6 @@ public class BuildUnitRulesJUnitTest extends BaseJUnitTest {
      */
     @Test
     public void testCompleteAfterThreeTurns(){
-    	ksession.addEventListener(new DebugAgendaEventListener());
-    	ksession.addEventListener(new DebugRuleRuntimeEventListener());
     	// Add mock eventlistener
     	AgendaEventListener ael = mock( AgendaEventListener.class );
     	ksession.addEventListener( ael );
@@ -279,6 +280,7 @@ public class BuildUnitRulesJUnitTest extends BaseJUnitTest {
     	CityDTO city = getCity(1L, "marefy");
     	Set<String> improvements = new HashSet<String>();
     	city.setImprovements(improvements);
+    	city.getEnabledUnitTypes().add("phalanx");
     	city.setCurrentUnit("phalanx");
     	city.setResourcesSurplus(60);
     	UnitTypeDTO unitType = getUnitType(1L,"phalanx",150);
